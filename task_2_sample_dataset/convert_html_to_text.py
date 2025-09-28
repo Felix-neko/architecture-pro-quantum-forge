@@ -174,7 +174,7 @@ def extract_content_from_html(html_file_path):
                         content_parts.append('\n'.join(info_pairs))
                 
                 # Process each element to preserve paragraph breaks
-                for element in main_content.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'div']):
+                for element in main_content.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'dl', 'dd', 'dt', 'div']):
                     # Skip if this element has already been processed as a nested element or info box
                     if id(element) in processed_elements:
                         continue
@@ -216,6 +216,37 @@ def extract_content_from_html(html_file_path):
                         
                         if list_items:
                             content_parts.append('\n'.join(list_items))
+                    elif element.name in ['dl', 'dd', 'dt']:
+                        # Handle definition lists
+                        if element.name == 'dl':
+                            # Process the entire definition list
+                            dd_items = []
+                            for dd in element.find_all('dd', recursive=False):
+                                dd_text = dd.get_text(separator=' ', strip=True)
+                                if dd_text:
+                                    dd_text = fix_spacing(dd_text)
+                                    dd_items.append(dd_text)
+                                    processed_elements.add(id(dd))
+                            
+                            dt_items = []
+                            for dt in element.find_all('dt', recursive=False):
+                                dt_text = dt.get_text(separator=' ', strip=True)
+                                if dt_text:
+                                    dt_text = fix_spacing(dt_text)
+                                    dt_items.append(dt_text)
+                                    processed_elements.add(id(dt))
+                            
+                            # Combine dt and dd items
+                            all_items = dt_items + dd_items
+                            if all_items:
+                                content_parts.extend(all_items)
+                        
+                        elif element.name in ['dd', 'dt']:
+                            # Handle individual dd/dt elements (if not already processed by dl)
+                            text = element.get_text(separator=' ', strip=True)
+                            if text:
+                                text = fix_spacing(text)
+                                content_parts.append(text)
                     elif element.name == 'p':
                         # Handle paragraphs - extract only direct text, excluding nested info boxes
                         # First, check if this paragraph contains an info box (aside element)
