@@ -2,8 +2,11 @@
 name = "architecture-pro-quantum-forge"
 version = "0.1.0"
 description = "Add your description here"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
+    "beautifulsoup4>=4.14.0",
+    "faiss-cpu>=1.12.0",
+    "faiss-gpu>=1.7.2",
     "sentence-transformers>=5.1.1",
     "torch<=2.7.1",
     "transformers>=4.56.2",
