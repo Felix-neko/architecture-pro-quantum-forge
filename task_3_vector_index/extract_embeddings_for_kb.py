@@ -85,8 +85,8 @@ def encode_documents(
 
 questions = yaml.safe_load(open("questions.yaml", "r"))
 questions_embeddings = model.encode(questions)
-# pickle.dump(questions_embeddings, open(Path(__file__).parent / "questions_embeddings-4B.pck", "wb"))
 pickle.dump(questions_embeddings, open(Path(__file__).parent / "questions_embeddings-0.6B.pck", "wb"))
+# pickle.dump(questions_embeddings, open(Path(__file__).parent / "questions_embeddings-4B.pck", "wb"))
 
 
 # # Compute the (cosine) similarity between the query and document embeddings
