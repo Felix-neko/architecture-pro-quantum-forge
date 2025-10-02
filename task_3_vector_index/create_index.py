@@ -1,14 +1,16 @@
 from pathlib import Path
 from typing import List, Tuple
+import logging
 import pickle
 
 import faiss
 import numpy as np
+import yaml
 
 # Число outgoing edges (связей) для каждой вершины в графе.
 # Обычно 16–64.
 # Чем больше M → лучше recall, но выше память и время построения.
-HNSW_M = 32
+HNSW_M = 64
 
 # Количество соседей, рассматриваемых при построении графа.
 # Обычно 100–500.
@@ -19,7 +21,7 @@ HNSW_EF_CONSTRUCTION = 200
 # Обычно 50–500.
 # Чем больше → выше точность, но медленнее поиск.
 # Этот параметр можно менять динамически перед поиском:
-HNSW_EF_SEARCH = 128
+HNSW_EF_SEARCH = 32
 
 # Сколько ближайших векторов выдавать при поиске
 K_SEARCH = 4
@@ -31,6 +33,7 @@ def load_and_index_kb_embeddings(kb_embeddings_path: Path) -> Tuple[faiss.IndexH
     kb_embeddings = np.vstack(list(kb_embeddings_dict.values()))
     assert len(kb_embeddings.shape) == 2
     n_docs, d = kb_embeddings.shape
+    logging.info(f"n_docs: {n_docs},\td: {d}")
 
     index = faiss.IndexHNSWFlat(d, HNSW_M, faiss.METRIC_L2)
     index.hnsw.efConstruction = HNSW_EF_CONSTRUCTION
@@ -44,7 +47,11 @@ def load_and_index_kb_embeddings(kb_embeddings_path: Path) -> Tuple[faiss.IndexH
 
 
 if __name__ == "__main__":
+    logging.getLogger().setLevel(logging.INFO)
     qwen_suffixes = ["4B", "0.6B"]
+
+    questions = yaml.safe_load(open(Path(__file__).parent / f"questions.yaml", "r"))
+
     for suffix in qwen_suffixes:
         print("=========")
         print(f"Using Qwen3-{suffix}")
@@ -63,6 +70,7 @@ if __name__ == "__main__":
 
         for i in range(n_questions):
             print("====")
-            print(f"Question {i}")
+            print(f"Question {i}: {questions[i]}")
+            print("Docs found:")
             for j in range(i_vals.shape[1]):
-                print(paths[i_vals[i, j]].name)
+                print(f"{j}: {paths[i_vals[i, j]].name}")
