@@ -12,6 +12,7 @@ dependencies = [
     "langchain-ollama>=0.3.10",
     "more-itertools>=10.8.0",
     "ollama>=0.6.0",
+    "pydantic>=2.11.9",
     "pyyaml>=6.0.3",
     "sentence-transformers>=5.1.1",
     "torch<=2.7.1",

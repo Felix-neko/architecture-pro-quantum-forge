@@ -1,18 +1,21 @@
+from pathlib import Path
+from typing import Dict, List, Tuple, Union
+
 import logging
-
-logging.getLogger().setLevel(logging.INFO)
-
 import pickle
+
+
+from more_itertools import chunked
+from pydantic import BaseModel
+from sentence_transformers import SentenceTransformer
+import numpy as np
 import yaml
 
-from pathlib import Path
-from typing import Dict, Union
+from task_3_vector_index.pydantic_dto import TextChunkInfo, TextEmbeddingsInfo
 
-import numpy as np
-from more_itertools import chunked, ichunked
-from sentence_transformers import SentenceTransformer
 
-N_DOCS_PER_BATCH = 4
+DOC_CHUNK_SIZE = 500
+DOC_OVERLAPPING_SIZE = 50
 
 
 def load_documents_in_folder(folder_path: Union[str, Path]) -> Dict[Path, str]:
@@ -29,68 +32,113 @@ def load_documents_in_folder(folder_path: Union[str, Path]) -> Dict[Path, str]:
     return result
 
 
-# Load the model
-model = SentenceTransformer("Qwen/Qwen3-Embedding-0.6B", tokenizer_kwargs={"padding_side": "left"})
-# model = SentenceTransformer("Qwen/Qwen3-Embedding-4B", device="cpu", tokenizer_kwargs={"padding_side": "left"})
+def get_model_context_size(model: SentenceTransformer, tokenizer) -> int:
+    # Сначала пробуем config.max_position_embeddings
+    try:
+        cfg = getattr(model, "auto_model", None)
+        if cfg is not None and hasattr(cfg, "config"):
+            val = getattr(cfg.config, "max_position_embeddings", None)
+            if val is not None and val > 0:
+                return int(val)
+    except Exception:
+        pass
+    # fallback на tokenizer
+    return int(getattr(tokenizer, "model_max_length", 512))
 
-# We recommend enabling flash_attention_2 for better acceleration and memory saving,
-# together with setting `padding_side` to "left":
-# model = SentenceTransformer(
-#     "Qwen/Qwen3-Embedding-4B",
-#     model_kwargs={"attn_implementation": "flash_attention_2", "device_map": "auto"},
-#     tokenizer_kwargs={"padding_side": "left"},
-# )
 
-# The queries and documents to embed
-# queries = [
-#     "What is the capital of China?",
-#     "Explain gravity",
-# ]
+def chunk_text_tokenwise(text: str, tokenizer, chunk_size: int, stride: int = 5) -> List[TextChunkInfo]:
+    enc = tokenizer(text, return_offsets_mapping=True, add_special_tokens=True)
+    input_ids = enc["input_ids"]
+    offsets = enc["offset_mapping"]
+    # маска спецтокенов (1 — спецтокен)
+    special_mask = tokenizer.get_special_tokens_mask(input_ids, already_has_special_tokens=True)
+    token_indices = [i for i, m in enumerate(special_mask) if m == 0]
 
-documents = load_documents_in_folder(
-    Path(__file__).parent.parent / "task_2_sample_dataset/arcanum_articles/text_output_replaced"
-)
+    chunks = []
+    i = 0
+    step = max(1, chunk_size - stride)
+    while i < len(token_indices):
+        window = token_indices[i : i + chunk_size]
+        if not window:
+            break
+        tok_start, tok_end = window[0], window[-1]
+        char_start = offsets[tok_start][0]
+        char_end = offsets[tok_end][1]
+        chunk_text = text[char_start:char_end]
+        chunks.append(
+            TextChunkInfo(token_range=(tok_start, tok_end), char_range=(char_start, char_end), text=chunk_text)
+        )
+        i += step
+    return chunks
 
 
 def encode_documents(
-    mdl: SentenceTransformer, documents: Dict[Path, str], n_docs_per_batch: int = N_DOCS_PER_BATCH
-) -> Dict[Path, np.ndarray]:
+    mdl: SentenceTransformer,
+    documents: Dict[Path, str],
+    chunk_size: int = DOC_CHUNK_SIZE,
+    overlap_size: int = DOC_OVERLAPPING_SIZE,
+) -> List[TextEmbeddingsInfo]:
+    """
+    Encode documents by splitting them into overlapping chunks.
 
-    result_embeddings: Dict[Path, np.ndarray] = {}
+    Args:
+        mdl: SentenceTransformer model for encoding
+        documents: Dictionary mapping file paths to document text
+        chunk_size: Size of each chunk in tokens
+        overlap_size: Number of overlapping tokens between chunks
 
-    for chunk_idx, items in enumerate(chunked(documents.items(), n_docs_per_batch)):
-        logging.info(
-            f"Processing chunk {chunk_idx} "
-            f"(docs #{n_docs_per_batch * chunk_idx} -- #{n_docs_per_batch * chunk_idx + len(items) - 1})"
+    Returns:
+        List of TextEmbeddingsInfo objects, one per document
+    """
+    tokenizer = mdl.tokenizer
+    result: List[TextEmbeddingsInfo] = []
+
+    for doc_idx, (path, text) in enumerate(documents.items()):
+        logging.info(f"Processing document {doc_idx + 1}/{len(documents)}: {path.name}")
+
+        # Split document into chunks
+        chunks = chunk_text_tokenwise(text, tokenizer, chunk_size=chunk_size, stride=overlap_size)
+
+        if not chunks:
+            logging.warning(f"Document {path.name} produced no chunks, skipping")
+            continue
+
+        logging.info(f"  Split into {len(chunks)} chunks")
+
+        # Extract chunk texts for encoding
+        chunk_texts = [chunk.text for chunk in chunks]
+
+        # Encode all chunks at once
+        embeddings = mdl.encode(chunk_texts, show_progress_bar=False)
+
+        # Create TextEmbeddingsInfo object
+        result.append(TextEmbeddingsInfo(original_text_path=path, embeddings=embeddings, chunks=chunks))
+
+    return result
+
+
+if __name__ == "__main__":
+    logging.getLogger().setLevel(logging.INFO)
+    qwen3_params = [("0.6B", False), ("4B", True)]  # (model_suffix, use_cpu)
+    documents = load_documents_in_folder(
+        Path(__file__).parent.parent / "task_2_sample_dataset/arcanum_articles/text_output_replaced"
+    )
+    questions = yaml.safe_load(open(Path(__file__).parent / "questions.yaml", "r"))
+
+    for suffix, use_cpu in qwen3_params:
+        logging.info("=========")
+        logging.info(f"Qwen3-{suffix}")
+        logging.info(f"encoding documents...")
+        model = SentenceTransformer(
+            f"Qwen/Qwen3-Embedding-{suffix}",
+            device="cpu" if use_cpu else None,
+            tokenizer_kwargs={"padding_side": "left"},
         )
-        paths = []
-        texts = []
-        for path, text in items:
-            paths.append(path)
-            texts.append(text)
+        docs_embeddings = encode_documents(model, documents)
+        questions_embeddings = model.encode(questions)  # Считаем вопросы короткими, по каждому из них просто 1 вектор
 
-        embeddings = mdl.encode(texts)
-        assert embeddings.shape[0] == len(paths)
-        for i, path in enumerate(paths):
-            result_embeddings[path] = embeddings[i][:]
-
-    return result_embeddings
-
-
-# docs_embeddings = encode_documents(model, documents)
-
-# pickle.dump(result_embeddings, open("embeddings-0.6B.pck", "wb"))
-# pickle.dump(docs_embeddings, open(Path(__file__).parent / "embeddings-4B.pck", "wb"))
-
-
-questions = yaml.safe_load(open("questions.yaml", "r"))
-questions_embeddings = model.encode(questions)
-pickle.dump(questions_embeddings, open(Path(__file__).parent / "questions_embeddings-0.6B.pck", "wb"))
-# pickle.dump(questions_embeddings, open(Path(__file__).parent / "questions_embeddings-4B.pck", "wb"))
-
-
-# # Compute the (cosine) similarity between the query and document embeddings
-# similarity = model.similarity(query_embeddings, document_embeddings)
-# print(similarity)
-# # tensor([[0.7534, 0.1147],
-# #         [0.0320, 0.6258]])
+        logging.info("saving embeddings...")
+        pickle.dump(docs_embeddings, open(Path(__file__).parent / f"doc_embeddings_chunked-{suffix}.pck", "wb"))
+        pickle.dump(questions_embeddings, open(Path(__file__).parent / f"questions_embeddings-{suffix}.pck", "wb"))
+        logging.info(f"Saved {len(docs_embeddings)} documents with chunked embeddings")
+        logging.info("embeddings saved...")
