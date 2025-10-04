@@ -1,9 +1,19 @@
 #!/usr/bin/env python3
 """RAG чат-бот с собственной функцией поиска"""
 
-from typing import List
+import logging
+from typing import List, Tuple, Callable
 from langchain_ollama import OllamaLLM
-from langchain.prompts import PromptTemplate
+from langchain.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableSequence
+
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 
 def your_search_function(query: str) -> List[str]:
@@ -26,43 +36,57 @@ def your_search_function(query: str) -> List[str]:
     ]
 
 
-def create_rag_chain():
+def create_rag_chain() -> Tuple[ChatPromptTemplate, OllamaLLM]:
     """Создаёт RAG chain с Qwen 3"""
 
     # Инициализация Qwen 3 8B
-    llm = OllamaLLM(
+    llm: OllamaLLM = OllamaLLM(
         model="qwen3:8b",
         temperature=0.7
     )
 
-    # Промпт для RAG на русском
-    template = """Используй следующий контекст для ответа на вопрос. Отвечай на русском языке.
-Если не знаешь ответа на основе контекста, так и скажи - не придумывай.
+    # ChatPromptTemplate с Few-Shot примерами
+    prompt: ChatPromptTemplate = ChatPromptTemplate.from_messages([
+        ("system", """Ты полезный ассистент. Отвечай на вопросы на основе предоставленного контекста.
+Если в контексте нет информации для ответа, честно скажи об этом - не придумывай."""),
 
-Контекст:
+        # Few-Shot примеры
+        ("human", """Контекст:
+[1] PostgreSQL - это объектно-реляционная СУБД с открытым исходным кодом.
+[2] PostgreSQL поддерживает JSON, полнотекстовый поиск и расширения.
+
+Вопрос: Что такое PostgreSQL?"""),
+        ("assistant", "PostgreSQL - это объектно-реляционная СУБД с открытым исходным кодом, которая поддерживает JSON, полнотекстовый поиск и расширения."),
+
+        ("human", """Контекст:
+[1] Redis - это in-memory хранилище данных типа ключ-значение.
+[2] Redis часто используется для кэширования и очередей сообщений.
+
+Вопрос: Какие языки программирования поддерживает Redis?"""),
+        ("assistant", "В предоставленном контексте нет информации о языках программирования, которые поддерживает Redis. Могу только сказать, что Redis - это in-memory хранилище данных."),
+
+        # Актуальный запрос пользователя
+        ("human", """Контекст:
 {context}
 
-Вопрос: {question}
+Вопрос: {question}""")
+    ])
 
-Ответ:"""
-
-    prompt = PromptTemplate(
-        template=template,
-        input_variables=["context", "question"]
-    )
-
-    # Современный LCEL синтаксис вместо LLMChain
-    chain = prompt | llm
-
-    return chain
+    return prompt, llm
 
 
-def answer_question(chain, question: str, search_func) -> tuple[str, List[str]]:
+def answer_question(
+        prompt_template: ChatPromptTemplate,
+        llm: OllamaLLM,
+        question: str,
+        search_func: Callable[[str], List[str]]
+) -> Tuple[str, List[str]]:
     """
     Отвечает на вопрос используя RAG
 
     Args:
-        chain: LangChain цепочка
+        prompt_template: шаблон промпта
+        llm: языковая модель
         question: вопрос пользователя
         search_func: функция поиска документов
 
@@ -70,32 +94,49 @@ def answer_question(chain, question: str, search_func) -> tuple[str, List[str]]:
         (ответ, список найденных документов)
     """
     # Поиск релевантных документов через вашу функцию
-    documents = search_func(question)
+    documents: List[str] = search_func(question)
 
     # Объединение документов в контекст
-    context = "\n\n".join([f"[{i+1}] {doc}" for i, doc in enumerate(documents)])
+    context: str = "\n\n".join([f"[{i+1}] {doc}" for i, doc in enumerate(documents)])
+
+    # Форматирование промпта
+    messages = prompt_template.format_messages(
+        context=context,
+        question=question
+    )
+
+    # Логирование промпта
+    logger.info("=" * 80)
+    logger.info("ПРОМПТ, ОТПРАВЛЯЕМЫЙ В LLM:")
+    logger.info("-" * 80)
+    for msg in messages:
+        logger.info(f"[{msg.type.upper()}]: {msg.content}")
+        logger.info("-" * 80)
 
     # Генерация ответа
-    response = chain.invoke({
-        "context": context,
-        "question": question
-    })
+    response: str = llm.invoke(messages)
+
+    # Логирование ответа
+    logger.info("ОТВЕТ ОТ LLM:")
+    logger.info("-" * 80)
+    logger.info(response)
+    logger.info("=" * 80)
 
     return response, documents
 
 
-def main():
+def main() -> None:
     """Основная функция"""
 
     print("Инициализация RAG чат-бота...")
-    chain = create_rag_chain()
+    prompt_template, llm = create_rag_chain()
     print("✓ Готово!\n")
 
     print("RAG чат-бот готов! (введите 'exit' или 'выход' для завершения)")
     print("Задавайте вопросы на русском языке\n")
 
     while True:
-        question = input("Вопрос: ").strip()
+        question: str = input("Вопрос: ").strip()
 
         if question.lower() in ('exit', 'quit', 'выход'):
             print("До свидания!")
@@ -105,14 +146,19 @@ def main():
             continue
 
         # Получение ответа с использованием вашей функции поиска
-        answer, sources = answer_question(chain, question, your_search_function)
+        answer, sources = answer_question(
+            prompt_template,
+            llm,
+            question,
+            your_search_function
+        )
 
         print(f"\nОтвет: {answer}\n")
 
         # Показать найденные документы
         print("Найденные документы:")
         for i, doc in enumerate(sources, 1):
-            snippet = doc[:150].replace('\n', ' ')
+            snippet: str = doc[:150].replace('\n', ' ')
             print(f"  [{i}] {snippet}...")
         print()
 
