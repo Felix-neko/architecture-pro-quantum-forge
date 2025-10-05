@@ -4,6 +4,9 @@
 import logging
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
+import chromadb
+from chromadb.config import Settings
+from sentence_transformers import SentenceTransformer
 from langchain_ollama import OllamaLLM
 from langchain.chains import RetrievalQAWithSourcesChain
 from langchain.schema import Document
@@ -12,11 +15,77 @@ from langchain_core.retrievers import BaseRetriever
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
 
 # Настройка логирования
-logging.basicConfig(level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S")
 logger = logging.getLogger(__name__)
 
 
-class CustomRetriever(BaseRetriever):
+class CustomChromaRetriever(BaseRetriever):
+    """Кастомный ретривер для работы с ChromaDB коллекцией"""
+
+    suffix: str = "4B"  # Модельный суффикс: "0.6B" или "4B"
+    collection_name: str = "kb_embeddings"
+    k: int = 4  # количество результатов
+    use_cpu: bool = False  # Использовать CPU для embeddings
+
+    def __init__(self, suffix: str = "4B", use_cpu: bool = True, **kwargs):
+        super().__init__(**kwargs)
+        self.suffix = suffix
+        self.use_cpu = use_cpu
+
+        # Путь к ChromaDB с учётом суффикса
+        chroma_db_path = Path(__file__).parent.parent / "task_3_vector_index" / "chroma" / f"chroma-{suffix}"
+
+        # Инициализация ChromaDB клиента
+        self._chroma_client = chromadb.PersistentClient(
+            path=str(chroma_db_path), settings=Settings(anonymized_telemetry=False)
+        )
+        # Получить коллекцию
+        self._collection = self._chroma_client.get_collection(name=self.collection_name)
+
+        # Инициализация embeddings модели (Qwen3-Embedding)
+        self._model = SentenceTransformer(
+            f"Qwen/Qwen3-Embedding-{suffix}",
+            device="cpu" if use_cpu else None,
+            tokenizer_kwargs={"padding_side": "left"},
+        )
+
+    def _get_relevant_documents(
+        self, query: str, *, run_manager: CallbackManagerForRetrieverRun = None
+    ) -> List[Document]:
+        """
+        Получить релевантные документы из ChromaDB по запросу.
+
+        Args:
+            query: текст вопроса
+            run_manager: callback manager (опционально)
+
+        Returns:
+            список Document с метаданными (source, token_range, char_range)
+        """
+        # Получить эмбеддинг для запроса (так же, как в extract_embeddings_for_kb.py)
+        query_embedding = self._model.encode(query).tolist()
+
+        # Поиск в ChromaDB
+        results = self._collection.query(query_embeddings=[query_embedding], n_results=self.k)
+
+        # Преобразовать результаты в Document объекты
+        documents = []
+        if results["metadatas"] and len(results["metadatas"]) > 0:
+            for i, metadata in enumerate(results["metadatas"][0]):
+                doc = Document(
+                    page_content=metadata["text"],
+                    metadata={
+                        "source": metadata["source_path"],
+                        "token_range": (metadata["token_range_start"], metadata["token_range_end"]),
+                        "char_range": (metadata["char_range_start"], metadata["char_range_end"]),
+                    },
+                )
+                documents.append(doc)
+
+        return documents
+
+
+class StubRetriever(BaseRetriever):
     """Кастомный ретривер с встроенной функцией поиска"""
 
     def _get_relevant_documents(
@@ -35,7 +104,7 @@ class CustomRetriever(BaseRetriever):
         """
         # Пример заглушки - заменить на вашу реальную функцию поиска
         # Здесь должна быть логика поиска по вашей базе знаний
-        
+
         documents = [
             Document(
                 page_content="SQLite - это встроенная SQL база данных, не требующая отдельного сервера.",
@@ -70,7 +139,7 @@ class CustomRetriever(BaseRetriever):
                 },
             ),
         ]
-        
+
         return documents
 
 
@@ -91,13 +160,13 @@ def create_rag_chain() -> RetrievalQAWithSourcesChain:
 
     # Создать промпт для QA chain
     qa_prompt = PromptTemplate(
-        template=system_template
-            + "\n\nКонтекст:\n{summaries}\n\nВопрос: {question}\n\nОтвет:",
+        template=system_template + "\n\nКонтекст:\n{summaries}\n\nВопрос: {question}\n\nОтвет:",
         input_variables=["summaries", "question"],
     )
 
     # Создать кастомный ретривер
-    retriever = CustomRetriever()
+    # retriever = StubRetriever()  # Для тестирования без ChromaDB
+    retriever = CustomChromaRetriever(suffix="4B", use_cpu=True)  # Реальный поиск через ChromaDB
 
     # Создать цепочку RetrievalQAWithSourcesChain
     chain = RetrievalQAWithSourcesChain.from_chain_type(

@@ -6,6 +6,9 @@ import pickle
 import faiss
 import numpy as np
 import yaml
+import chromadb
+from chromadb.config import Settings
+from chromadb.api.models.Collection import Collection
 
 from task_3_vector_index.pydantic_dto import TextEmbeddingsInfo, TextChunkInfo
 
@@ -29,15 +32,16 @@ HNSW_EF_SEARCH = 32
 K_SEARCH = 5
 
 
-def load_and_index_kb_embeddings(kb_embeddings_path: Path) -> Tuple[faiss.IndexHNSWFlat, List[Path]]:
+def load_and_index_kb_embeddings(kb_embeddings_path: Path, suffix: str) -> Tuple[faiss.IndexHNSWFlat, Collection, List[Path]]:
     """
-    Load chunked document embeddings and create a FAISS index.
+    Load chunked document embeddings and create FAISS and Chroma DB indexes.
 
     Args:
         kb_embeddings_path: Path to pickle file containing List[TextEmbeddingsInfo]
+        suffix: Model suffix (e.g., "0.6B" or "4B") for separate ChromaDB storage
 
     Returns:
-        Tuple of (FAISS index, list of source paths for each embedding vector)
+        Tuple of (FAISS index, Chroma collection, list of source paths)
     """
     kb_embeddings_list = pickle.load(open(kb_embeddings_path, "rb"))
     assert isinstance(kb_embeddings_list, list), f"Expected list, got {type(kb_embeddings_list)}"
@@ -69,10 +73,55 @@ def load_and_index_kb_embeddings(kb_embeddings_path: Path) -> Tuple[faiss.IndexH
     index.hnsw.efSearch = HNSW_EF_SEARCH
 
     index.add(kb_embeddings)
-    return index, source_paths
 
+    # Create Chroma DB index with metadata
+    chroma_db_path = Path(__file__).parent / "chroma" / f"chroma-{suffix}"
+    chroma_client = chromadb.PersistentClient(
+        path=str(chroma_db_path),
+        settings=Settings(anonymized_telemetry=False),
+    )
 
-# def load_questions_embeddings(questions_embeddings_path: Path) -> np.ndarray
+    # Create or get collection with cosine similarity (equivalent to L2 normalized)
+    collection_name = "kb_embeddings"
+    try:
+        chroma_client.delete_collection(name=collection_name)
+    except:
+        pass
+
+    chroma_collection = chroma_client.create_collection(
+        name=collection_name, metadata={"hnsw:space": "l2"}  # L2 distance like FAISS
+    )
+
+    # Prepare data for Chroma DB
+    chunk_metadata_list = []
+    chunk_idx = 0
+
+    for doc_info in kb_embeddings_list:
+        n_chunks = doc_info.embeddings.shape[0]
+
+        for i in range(n_chunks):
+            chunk_info = doc_info.chunks[i]
+            metadata = {
+                "source_path": str(doc_info.original_text_path),
+                "token_range_start": chunk_info.token_range[0],
+                "token_range_end": chunk_info.token_range[1],
+                "char_range_start": chunk_info.char_range[0],
+                "char_range_end": chunk_info.char_range[1],
+                "text": chunk_info.text,
+            }
+            chunk_metadata_list.append(metadata)
+            chunk_idx += 1
+
+    # Add embeddings with metadata to Chroma
+    chroma_collection.add(
+        embeddings=kb_embeddings.tolist(),
+        metadatas=chunk_metadata_list,
+        ids=[f"chunk_{i}" for i in range(len(chunk_metadata_list))],
+    )
+
+    logging.info(f"Created Chroma collection '{collection_name}' with {len(chunk_metadata_list)} chunks")
+
+    return index, chroma_collection, source_paths
 
 
 if __name__ == "__main__":
@@ -82,11 +131,13 @@ if __name__ == "__main__":
     questions = yaml.safe_load(open(Path(__file__).parent / f"questions.yaml", "r"))
 
     for suffix in qwen_suffixes:
+        print("")
         print("=========")
         print(f"Using Qwen3-{suffix}")
 
-        index, paths = load_and_index_kb_embeddings(
-            kb_embeddings_path=Path(__file__).parent / f"doc_embeddings_chunked-{suffix}.pck"
+        index, chroma_collection, paths = load_and_index_kb_embeddings(
+            kb_embeddings_path=Path(__file__).parent / f"doc_embeddings_chunked-{suffix}.pck",
+            suffix=suffix,
         )
 
         questions_embeddings_path = Path(__file__).parent / f"questions_embeddings-{suffix}.pck"
@@ -98,8 +149,19 @@ if __name__ == "__main__":
         print(i_vals)
 
         for i in range(n_questions):
+            print("")
             print("====")
             print(f"Question {i}: {questions[i]}")
-            print("Docs found:")
+            print("")
+            print("FAISS Docs found:")
             for j in range(i_vals.shape[1]):
                 print(f"{j}: {paths[i_vals[i, j]].name}")
+
+            # Query Chroma DB
+            print("\nChroma DB results:")
+            chroma_results = chroma_collection.query(query_embeddings=[q_embeddings[i].tolist()], n_results=K_SEARCH)
+            for j, metadata in enumerate(chroma_results["metadatas"][0]):
+                print(f"{j}: {Path(metadata['source_path']).name}")
+                print(f"   Token range: ({metadata['token_range_start']}, {metadata['token_range_end']})")
+                print(f"   Char range: ({metadata['char_range_start']}, {metadata['char_range_end']})")
+                # print(f"   Text: {metadata['text'][:100]}...")
