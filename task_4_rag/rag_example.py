@@ -3,20 +3,45 @@
 
 import logging
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 from langchain_ollama import OllamaLLM
-from langchain.chains import RetrievalQAWithSourcesChain
+from langchain.chains import RetrievalQAWithSourcesChain, LLMChain
 from langchain.schema import Document
 from langchain.prompts import PromptTemplate
 from langchain_core.retrievers import BaseRetriever
-from langchain_core.callbacks import CallbackManagerForRetrieverRun
+from langchain_core.callbacks import CallbackManagerForRetrieverRun, BaseCallbackHandler
+from langchain_core.outputs import LLMResult
 
 # Настройка логирования
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S")
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S")
 logger = logging.getLogger(__name__)
+
+
+class PromptLoggingCallback(BaseCallbackHandler):
+    """Callback для логирования промптов, отправляемых в LLM"""
+
+    def on_llm_start(self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any) -> None:
+        """Вызывается при начале работы LLM"""
+        logger.info("=" * 80)
+        logger.info("ПРОМПТ, ОТПРАВЛЯЕМЫЙ В LLM:")
+        logger.info("=" * 80)
+        for i, prompt in enumerate(prompts, 1):
+            logger.info(f"\n--- Промпт #{i} ---")
+            logger.info(prompt)
+        logger.info("=" * 80)
+
+    def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
+        """Вызывается при завершении работы LLM"""
+        logger.info("-" * 80)
+        logger.info("ОТВЕТ ОТ LLM:")
+        logger.info("-" * 80)
+        for generation in response.generations:
+            for gen in generation:
+                logger.info(gen.text)
+        logger.info("=" * 80)
 
 
 class CustomChromaRetriever(BaseRetriever):
@@ -68,12 +93,13 @@ class CustomChromaRetriever(BaseRetriever):
         # Поиск в ChromaDB
         results = self._collection.query(query_embeddings=[query_embedding], n_results=self.k)
 
-        # Преобразовать результаты в Document объекты
+        # Преобразовать результаты в Document объекты с нумерацией
         documents = []
         if results["metadatas"] and len(results["metadatas"]) > 0:
-            for i, metadata in enumerate(results["metadatas"][0]):
+            for i, metadata in enumerate(results["metadatas"][0], start=1):
+                # Добавляем нумерацию прямо в page_content
                 doc = Document(
-                    page_content=metadata["text"],
+                    page_content=f"[{i}] {metadata['text']}",
                     metadata={
                         "source": metadata["source_path"],
                         "token_range": (metadata["token_range_start"], metadata["token_range_end"]),
@@ -107,7 +133,7 @@ class StubRetriever(BaseRetriever):
 
         documents = [
             Document(
-                page_content="SQLite - это встроенная SQL база данных, не требующая отдельного сервера.",
+                page_content="[1] SQLite - это встроенная SQL база данных, не требующая отдельного сервера.",
                 metadata={
                     "source": "https://example.com/docs/sqlite_intro.html",
                     "token_range": (0, 15),
@@ -115,7 +141,7 @@ class StubRetriever(BaseRetriever):
                 },
             ),
             Document(
-                page_content="SQLite широко используется в мобильных приложениях на iOS и Android.",
+                page_content="[2] SQLite широко используется в мобильных приложениях на iOS и Android.",
                 metadata={
                     "source": "https://example.com/docs/sqlite_mobile.html",
                     "token_range": (120, 135),
@@ -123,7 +149,7 @@ class StubRetriever(BaseRetriever):
                 },
             ),
             Document(
-                page_content="База данных SQLite хранится в одном файле на диске.",
+                page_content="[3] База данных SQLite хранится в одном файле на диске.",
                 metadata={
                     "source": "/path/to/local/sqlite_storage.txt",
                     "token_range": (45, 58),
@@ -131,7 +157,7 @@ class StubRetriever(BaseRetriever):
                 },
             ),
             Document(
-                page_content="SQLite поддерживает транзакции ACID и большинство стандартных SQL операций.",
+                page_content="[4] SQLite поддерживает транзакции ACID и большинство стандартных SQL операций.",
                 metadata={
                     "source": "https://example.com/docs/sqlite_features.html",
                     "token_range": (200, 218),
@@ -152,29 +178,45 @@ def load_prompt_template(template_path: Path = Path(__file__).parent / "prompt_t
 def create_rag_chain() -> RetrievalQAWithSourcesChain:
     """Создаёт RAG chain с Qwen 3 и кастомным ретривером"""
 
-    # Инициализация Qwen 3 8B
-    llm: OllamaLLM = OllamaLLM(model="qwen3:8b", temperature=0.7)
+    # Создать callback для логирования промптов
+    prompt_callback = PromptLoggingCallback()
+
+    # Инициализация Qwen 3 8B с callback
+    llm: OllamaLLM = OllamaLLM(model="qwen3:8b", temperature=0.5, callbacks=[prompt_callback])
 
     # Загрузить шаблон промпта из файла
-    system_template = load_prompt_template()
-
-    # Создать промпт для QA chain
-    qa_prompt = PromptTemplate(
-        template=system_template + "\n\nКонтекст:\n{summaries}\n\nВопрос: {question}\n\nОтвет:",
-        input_variables=["summaries", "question"],
-    )
+    system_template = load_prompt_template(Path(__file__).parent / "prompt_template_ginecarum.txt")
 
     # Создать кастомный ретривер
     # retriever = StubRetriever()  # Для тестирования без ChromaDB
     retriever = CustomChromaRetriever(suffix="4B", use_cpu=True)  # Реальный поиск через ChromaDB
 
-    # Создать цепочку RetrievalQAWithSourcesChain
+    # Создать промпт с few-shot примерами
+    # Для RetrievalQAWithSourcesChain используем переменную {summaries} для контекста
+    combine_prompt = PromptTemplate(
+        template=system_template + "\n\nКонтекст:\n{summaries}\n\nВопрос: {question}\n\nОтвет:",
+        input_variables=["summaries", "question"],
+    )
+
+    # Промпт для форматирования отдельных документов (без index, т.к. он не поддерживается)
+    document_prompt = PromptTemplate(template="{page_content}", input_variables=["page_content"])
+
+    # Создаём кастомный document separator с нумерацией
+    document_separator = "\n\n"
+
+    # Создать цепочку RetrievalQAWithSourcesChain с правильными параметрами
     chain = RetrievalQAWithSourcesChain.from_chain_type(
         llm=llm,
         chain_type="stuff",
         retriever=retriever,
         return_source_documents=True,
-        chain_type_kwargs={"prompt": qa_prompt},
+        chain_type_kwargs={
+            "prompt": combine_prompt,
+            "document_prompt": document_prompt,
+            "document_variable_name": "summaries",
+            "document_separator": document_separator,
+        },
+        verbose=False,
     )
 
     return chain
@@ -191,17 +233,12 @@ def answer_question(chain: RetrievalQAWithSourcesChain, question: str) -> Dict[s
     Returns:
         словарь с ответом и найденными документами
     """
+    logger.info("\n" + "=" * 80)
+    logger.info(f"ВОПРОС ПОЛЬЗОВАТЕЛЯ: {question}")
     logger.info("=" * 80)
-    logger.info(f"Вопрос: {question}")
-    logger.info("-" * 80)
 
-    # Получить ответ от chain
+    # Получить ответ от chain (промпт будет залогирован через callback)
     result = chain.invoke({"question": question})
-
-    logger.info("ОТВЕТ ОТ LLM:")
-    logger.info("-" * 80)
-    logger.info(result.get("answer", ""))
-    logger.info("=" * 80)
 
     return result
 
