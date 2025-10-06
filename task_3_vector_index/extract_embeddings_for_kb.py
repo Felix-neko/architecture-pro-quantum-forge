@@ -4,11 +4,7 @@ from typing import Dict, List, Tuple, Union
 import logging
 import pickle
 
-
-from more_itertools import chunked
-from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
-import numpy as np
 import yaml
 
 from task_3_vector_index.pydantic_dto import TextChunkInfo, TextEmbeddingsInfo
@@ -66,7 +62,13 @@ def chunk_text_tokenwise(text: str, tokenizer, chunk_size: int, stride: int = 5)
         char_end = offsets[tok_end][1]
         chunk_text = text[char_start:char_end]
         chunks.append(
-            TextChunkInfo(token_range=(tok_start, tok_end), char_range=(char_start, char_end), text=chunk_text)
+            TextChunkInfo(
+                token_range_start=tok_start,
+                token_range_end=tok_end,
+                char_range_start=char_start,
+                char_range_end=char_end,
+                text=chunk_text,
+            )
         )
         i += step
     return chunks

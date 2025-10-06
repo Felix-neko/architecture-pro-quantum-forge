@@ -41,7 +41,7 @@ def calculate_hashes(in_folder_path: Path) -> Dict[Path, str]:
                 h.update(chunk)
 
         # Сохраняем хеш в виде hex-строки
-        hashes[file_path] = h.hexdigest()
+        hashes[file_path.resolve()] = h.hexdigest()
 
     return hashes
 

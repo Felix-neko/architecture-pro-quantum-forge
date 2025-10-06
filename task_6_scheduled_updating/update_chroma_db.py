@@ -1,18 +1,22 @@
 import logging
 import shutil
 import sys
+from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 import chromadb
 from chromadb.config import Settings
 from more_itertools import chunked
 from sentence_transformers import SentenceTransformer
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
 
 # Импорт функций из task_3_vector_index
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from task_3_vector_index.extract_embeddings_for_kb import encode_documents
 from task_6_scheduled_updating.file_hashing import calculate_hashes, compare_hashes
+from task_6_scheduled_updating.sqla_models import Base, VectorIndexVersion, DocHash
 
 N_DOCS_PER_BATCH = 3
 
@@ -144,28 +148,104 @@ def update_kb_index(
     new_chroma_dir_path: Path,
     metadata_db_path: Path = Path(__file__).parent / "metadata.db",
     qwen3_suffix: str = "4B",
-):
+) -> Path:
     """
     Обновляем векторный индекс базы знаний:
-    - j
-    -  Ищем последний по порядку .pck-файл в hashes_dir_path (считает его хешами предыдущей версии документов)
-    - Считаем хеши всех документов doc_dir_path (с помощью calculate_hashes)
-    - Актуальные хеши сохраняем в `hashes_dir_path` / f"{yyyy}-{mm}-{dd}_{hh}-{mm}-{ss}.pck"
-    - Делаем сравнение хешей с помощью compare_hashes и обновление ChromaDB с помощью update_embeddings
+    - открываем SQLite-БД метаданных;
+    - ищем там последнюю по времени версию векторного индекса (если есть) -- т.е. предыдущую версию хешей;
+    - считаем хеши всех документов из doc_dir_path (с помощью calculate_hashes) -- т.е. актуальную версию хешей;
+    - Сравниваем актуальную версию хешей с предыдущей (с помощью compare_hashes)
+    - обновляем ChromaDB с помощью update_embeddings (новую базу размещаем в new_chroma_dir_path)
+    - в случае успеха записываем в БД метаданных информацию о новом векторном индексе (путь к Chroma-базе и набор хешей)
 
+    Returns:
+        путь к новой ChromaDB
     """
+    logging.info("=== Начало обновления векторного индекса ===")
+
+    # 1. Открыть или создать БД метаданных
+    engine = create_engine(f"sqlite:///{metadata_db_path}", echo=False)
+    Base.metadata.create_all(engine)
+    logging.info(f"✅ БД метаданных: {metadata_db_path}")
+
+    # 2. Найти последнюю версию векторного индекса
+    old_chroma_path: Optional[Path] = None
+    old_hashes: Dict[Path, str] = {}
+
+    with Session(engine) as session:
+        # Запрос последней версии по дате создания
+        stmt = select(VectorIndexVersion).order_by(VectorIndexVersion.created_at.desc()).limit(1)
+        last_version = session.scalars(stmt).first()
+
+        if last_version:
+            old_chroma_path = Path(last_version.path)
+            logging.info(f"📂 Найдена предыдущая версия индекса: {old_chroma_path}")
+            logging.info(f"   Создана: {last_version.created_at}")
+            logging.info(f"   Документов: {len(last_version.doc_hashes)}")
+
+            # Загрузить старые хеши
+            for doc_hash in last_version.doc_hashes:
+                old_hashes[Path(doc_hash.path)] = doc_hash.hash
+        else:
+            logging.info("🆕 Предыдущих версий не найдено, создаём индекс с нуля")
+
+    # 3. Вычислить актуальные хеши документов
+    logging.info(f"🔍 Вычисление хешей документов в {doc_dir_path}...")
+    new_hashes = calculate_hashes(doc_dir_path)
+    logging.info(f"✅ Найдено документов: {len(new_hashes)}")
+
+    # 4. Сравнить хеши
+    new_files, modified_files, deleted_files = compare_hashes(old_hashes, new_hashes)
+    logging.info(f"📊 Изменения:")
+    logging.info(f"   Новые файлы: {len(new_files)}")
+    logging.info(f"   Изменённые файлы: {len(modified_files)}")
+    logging.info(f"   Удалённые файлы: {len(deleted_files)}")
+
+    # 5. Обновить ChromaDB
+    logging.info(f"🔄 Обновление ChromaDB...")
+    new_chroma_path = update_embeddings(
+        old_chroma_dir_path=old_chroma_path,
+        new_chroma_dir_path=new_chroma_dir_path,
+        new_files=new_files,
+        modified_files=modified_files,
+        deleted_files=deleted_files,
+        qwen3_suffix=qwen3_suffix,
+    )
+
+    # 6. Записать информацию о новой версии в БД
+    logging.info(f"💾 Сохранение метаданных новой версии...")
+    with Session(engine) as session:
+        # Создать новую версию индекса
+        new_version = VectorIndexVersion(path=str(new_chroma_dir_path.resolve()), created_at=datetime.utcnow())
+
+        # Добавить хеши документов
+        for file_path, file_hash in new_hashes.items():
+            doc_hash = DocHash(path=str(file_path.resolve()), hash=file_hash)
+            new_version.doc_hashes.append(doc_hash)
+
+        session.add(new_version)
+        session.commit()
+
+        logging.info(f"✅ Версия индекса сохранена (ID: {new_version.id})")
+        logging.info(f"   Путь: {new_version.path}")
+        logging.info(f"   Документов: {len(new_version.doc_hashes)}")
+
+    logging.info("=== Обновление векторного индекса завершено ===")
+    return new_chroma_path
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-    old_folder_path = Path(__file__).parent.parent / "task_2_sample_dataset/arcanum_articles/text_output_replaced"
+    old_doc_folder_path = Path(__file__).parent.parent / "task_2_sample_dataset/arcanum_articles/text_output_replaced"
 
-    old_hashes = calculate_hashes(old_folder_path)
-    update_embeddings(
-        Path(__file__).parent.parent / "task_3_vector_index/chroma/chroma-4B",
-        Path("new_chroma-4B"),
-        new_files=list(old_hashes.keys()),
-        modified_files=[],
-        deleted_files=[],
-    )
+    update_kb_index(old_doc_folder_path, Path("mega-chroma-4B"))
+
+    # old_hashes = calculate_hashes(old_folder_path)
+    # update_embeddings(
+    #     Path(__file__).parent.parent / "task_3_vector_index/chroma/chroma-4B",
+    #     Path("new_chroma-4B"),
+    #     new_files=list(old_hashes.keys()),
+    #     modified_files=[],
+    #     deleted_files=[],
+    # )

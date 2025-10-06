@@ -32,7 +32,9 @@ HNSW_EF_SEARCH = 32
 K_SEARCH = 5
 
 
-def load_and_index_kb_embeddings(kb_embeddings_path: Path, suffix: str) -> Tuple[faiss.IndexHNSWFlat, Collection, List[Path]]:
+def load_and_index_kb_embeddings(
+    kb_embeddings_path: Path, suffix: str
+) -> Tuple[faiss.IndexHNSWFlat, Collection, List[Path]]:
     """
     Load chunked document embeddings and create FAISS and Chroma DB indexes.
 
@@ -76,10 +78,7 @@ def load_and_index_kb_embeddings(kb_embeddings_path: Path, suffix: str) -> Tuple
 
     # Create Chroma DB index with metadata
     chroma_db_path = Path(__file__).parent / "chroma" / f"chroma-{suffix}"
-    chroma_client = chromadb.PersistentClient(
-        path=str(chroma_db_path),
-        settings=Settings(anonymized_telemetry=False),
-    )
+    chroma_client = chromadb.PersistentClient(path=str(chroma_db_path), settings=Settings(anonymized_telemetry=False))
 
     # Create or get collection with cosine similarity (equivalent to L2 normalized)
     collection_name = "kb_embeddings"
@@ -99,16 +98,10 @@ def load_and_index_kb_embeddings(kb_embeddings_path: Path, suffix: str) -> Tuple
     for doc_info in kb_embeddings_list:
         n_chunks = doc_info.embeddings.shape[0]
 
-        for i in range(n_chunks):
-            chunk_info = doc_info.chunks[i]
-            metadata = {
-                "source_path": str(doc_info.original_text_path),
-                "token_range_start": chunk_info.token_range[0],
-                "token_range_end": chunk_info.token_range[1],
-                "char_range_start": chunk_info.char_range[0],
-                "char_range_end": chunk_info.char_range[1],
-                "text": chunk_info.text,
-            }
+        for i, chunk_info in enumerate(doc_info.chunks):
+            # Используем .dict() для получения метаданных и добавляем source_path
+            metadata = chunk_info.dict()
+            metadata["source_path"] = str(doc_info.original_text_path)
             chunk_metadata_list.append(metadata)
             chunk_idx += 1
 
@@ -136,8 +129,7 @@ if __name__ == "__main__":
         print(f"Using Qwen3-{suffix}")
 
         index, chroma_collection, paths = load_and_index_kb_embeddings(
-            kb_embeddings_path=Path(__file__).parent / f"doc_embeddings_chunked-{suffix}.pck",
-            suffix=suffix,
+            kb_embeddings_path=Path(__file__).parent / f"doc_embeddings_chunked-{suffix}.pck", suffix=suffix
         )
 
         questions_embeddings_path = Path(__file__).parent / f"questions_embeddings-{suffix}.pck"
