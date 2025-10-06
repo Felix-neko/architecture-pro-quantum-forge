@@ -10,7 +10,13 @@ from sentence_transformers import SentenceTransformer
 from langchain_ollama import OllamaLLM, ChatOllama
 from langchain.chains import RetrievalQAWithSourcesChain, LLMChain
 from langchain.schema import Document
-from langchain.prompts import PromptTemplate, ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate, AIMessagePromptTemplate
+from langchain.prompts import (
+    PromptTemplate,
+    ChatPromptTemplate,
+    SystemMessagePromptTemplate,
+    HumanMessagePromptTemplate,
+    AIMessagePromptTemplate,
+)
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.callbacks import CallbackManagerForRetrieverRun, BaseCallbackHandler
 from langchain_core.outputs import LLMResult
@@ -42,6 +48,10 @@ class PromptLoggingCallback(BaseCallbackHandler):
             for gen in generation:
                 logger.info(gen.text)
         logger.info("=" * 80)
+
+
+# Сущности, которые убираем из поисковой выдачи
+FORBIDDEN_ENTITIES = ["суперпарол", "superpassword"]
 
 
 class CustomChromaRetriever(BaseRetriever):
@@ -87,6 +97,8 @@ class CustomChromaRetriever(BaseRetriever):
         Returns:
             список Document с метаданными (source, token_range, char_range)
         """
+        # Список запрещённых сущностей для фильтрации
+
         # Получить эмбеддинг для запроса (так же, как в extract_embeddings_for_kb.py)
         query_embedding = self._model.encode(query).tolist()
 
@@ -96,10 +108,20 @@ class CustomChromaRetriever(BaseRetriever):
         # Преобразовать результаты в Document объекты с нумерацией
         documents = []
         if results["metadatas"] and len(results["metadatas"]) > 0:
-            for i, metadata in enumerate(results["metadatas"][0], start=1):
+            doc_index = 1
+            for metadata in results["metadatas"][0]:
+                text = metadata["text"]
+
+                # Фильтрация: пропустить документы с запрещёнными сущностями
+                if any(forbidden in text.lower() for forbidden in FORBIDDEN_ENTITIES):
+                    logger.info(f"🔒 Фильтрация документа с запрещённой информацией: {FORBIDDEN_ENTITIES}")
+                    logger.info(metadata["source_path"])
+                    logger.info("Document filtered out!")
+                    continue
+
                 # Добавляем нумерацию прямо в page_content
                 doc = Document(
-                    page_content=f"[{i}] {metadata['text']}",
+                    page_content=f"[{doc_index}] {text}",
                     metadata={
                         "source": metadata["source_path"],
                         "token_range": (metadata["token_range_start"], metadata["token_range_end"]),
@@ -107,6 +129,7 @@ class CustomChromaRetriever(BaseRetriever):
                     },
                 )
                 documents.append(doc)
+                doc_index += 1
 
         return documents
 
@@ -178,7 +201,7 @@ def load_prompt_template(template_path: Path = Path(__file__).parent / "prompt_t
 def load_ginecarum_prompts() -> Dict[str, str]:
     """Загрузить все секции промпта Ginecarum из папки"""
     prompt_dir = Path(__file__).parent / "ginecarum_prompt"
-    
+
     sections = {
         "system": "system.txt",
         "example1_user": "example1_user.txt",
@@ -187,13 +210,13 @@ def load_ginecarum_prompts() -> Dict[str, str]:
         "example2_assistant": "example2_assistant.txt",
         "query_user": "query_user.txt",
     }
-    
+
     prompts = {}
     for key, filename in sections.items():
         file_path = prompt_dir / filename
         with open(file_path, "r", encoding="utf-8") as f:
             prompts[key] = f.read()
-    
+
     return prompts
 
 
@@ -214,20 +237,22 @@ def create_rag_chain() -> RetrievalQAWithSourcesChain:
     prompts = load_ginecarum_prompts()
 
     # Создать ChatPromptTemplate с разными ролями для разных секций
-    combine_prompt = ChatPromptTemplate.from_messages([
-        # System message: основные инструкции
-        SystemMessagePromptTemplate.from_template(prompts["system"]),
-        # Few-shot Example 1 - User message
-        HumanMessagePromptTemplate.from_template(prompts["example1_user"]),
-        # Few-shot Example 1 - Assistant response
-        AIMessagePromptTemplate.from_template(prompts["example1_assistant"]),
-        # Few-shot Example 2 - User message
-        HumanMessagePromptTemplate.from_template(prompts["example2_user"]),
-        # Few-shot Example 2 - Assistant response
-        AIMessagePromptTemplate.from_template(prompts["example2_assistant"]),
-        # Actual query - User message with context and question
-        HumanMessagePromptTemplate.from_template(prompts["query_user"]),
-    ])
+    combine_prompt = ChatPromptTemplate.from_messages(
+        [
+            # System message: основные инструкции
+            SystemMessagePromptTemplate.from_template(prompts["system"]),
+            # Few-shot Example 1 - User message
+            HumanMessagePromptTemplate.from_template(prompts["example1_user"]),
+            # Few-shot Example 1 - Assistant response
+            AIMessagePromptTemplate.from_template(prompts["example1_assistant"]),
+            # Few-shot Example 2 - User message
+            HumanMessagePromptTemplate.from_template(prompts["example2_user"]),
+            # Few-shot Example 2 - Assistant response
+            AIMessagePromptTemplate.from_template(prompts["example2_assistant"]),
+            # Actual query - User message with context and question
+            HumanMessagePromptTemplate.from_template(prompts["query_user"]),
+        ]
+    )
 
     # Промпт для форматирования отдельных документов (без index, т.к. он не поддерживается)
     document_prompt = PromptTemplate(template="{page_content}", input_variables=["page_content"])
