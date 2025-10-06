@@ -96,9 +96,12 @@ def update_embeddings(
         # Обработка файлов батчами
         chunk_idx = 0
         total_chunks_added = 0
+        total_files = len(files_to_add)
 
         for batch_num, file_batch in enumerate(chunked(files_to_add, N_DOCS_PER_BATCH), start=1):
-            logging.info(f"  📦 Батч {batch_num}: обработка {len(file_batch)} файлов...")
+            start_doc = (batch_num - 1) * N_DOCS_PER_BATCH + 1
+            end_doc = min(batch_num * N_DOCS_PER_BATCH, total_files)
+            logging.info(f"  📦 Батч {batch_num}: обработка документов с {start_doc} по {end_doc}...")
 
             # Загрузить документы из текущего батча
             documents = {}
@@ -239,7 +242,11 @@ if __name__ == "__main__":
 
     old_doc_folder_path = Path(__file__).parent.parent / "task_2_sample_dataset/arcanum_articles/text_output_replaced"
 
-    update_kb_index(old_doc_folder_path, Path("mega-chroma-4B"))
+    # Создаём путь с временной меткой: chroma_versions/4B/YYYY-MM-DD_hh-mm-ss
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    new_chroma_path = Path(__file__).parent / "chroma_versions" / "4B" / timestamp
+
+    update_kb_index(old_doc_folder_path, new_chroma_path)
 
     # old_hashes = calculate_hashes(old_folder_path)
     # update_embeddings(
