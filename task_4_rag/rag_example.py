@@ -303,6 +303,32 @@ def parse_think_and_answer(text: str) -> Tuple[Optional[str], str]:
         return None, text.strip()
 
 
+def format_source_documents(source_documents: List[Document]) -> str:
+    """
+    Форматирует найденные документы в текстовый блок.
+    
+    Args:
+        source_documents: список найденных документов с метаданными
+        
+    Returns:
+        отформатированный текст с информацией о чанках
+    """
+    if not source_documents:
+        return ""
+    
+    lines = ["Найденные чанки:"]
+    for i, doc in enumerate(source_documents, 1):
+        source = doc.metadata.get("source", "Неизвестно")
+        token_range = doc.metadata.get("token_range", "N/A")
+        char_range = doc.metadata.get("char_range", "N/A")
+        snippet: str = doc.page_content[:150].replace("\n", " ")
+        lines.append(f"  [{i}] Источник: {source}")
+        lines.append(f"      Токены: {token_range}, Символы: {char_range}")
+        lines.append(f"      {snippet}...")
+    
+    return "\n".join(lines)
+
+
 def answer_question(chain: RetrievalQAWithSourcesChain, question: str) -> Dict[str, Any]:
     """
     Отвечает на вопрос используя RAG chain
@@ -369,15 +395,8 @@ def main() -> None:
 
         # Показать найденные чанки с метаданными
         if result.get("source_documents"):
-            print("Найденные чанки:")
-            for i, doc in enumerate(result["source_documents"], 1):
-                source = doc.metadata.get("source", "Неизвестно")
-                token_range = doc.metadata.get("token_range", "N/A")
-                char_range = doc.metadata.get("char_range", "N/A")
-                snippet: str = doc.page_content[:150].replace("\n", " ")
-                print(f"  [{i}] Источник: {source}")
-                print(f"      Токены: {token_range}, Символы: {char_range}")
-                print(f"      {snippet}...")
+            chunks_text = format_source_documents(result["source_documents"])
+            print(chunks_text)
             print()
 
 
