@@ -1,0 +1,4 @@
+Контекст:
+{summaries}
+
+Вопрос: {question}

@@ -7,10 +7,10 @@ from typing import List, Dict, Any, Tuple, Optional
 import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
-from langchain_ollama import OllamaLLM
+from langchain_ollama import OllamaLLM, ChatOllama
 from langchain.chains import RetrievalQAWithSourcesChain, LLMChain
 from langchain.schema import Document
-from langchain.prompts import PromptTemplate
+from langchain.prompts import PromptTemplate, ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate, AIMessagePromptTemplate
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.callbacks import CallbackManagerForRetrieverRun, BaseCallbackHandler
 from langchain_core.outputs import LLMResult
@@ -175,28 +175,59 @@ def load_prompt_template(template_path: Path = Path(__file__).parent / "prompt_t
         return f.read()
 
 
+def load_ginecarum_prompts() -> Dict[str, str]:
+    """Загрузить все секции промпта Ginecarum из папки"""
+    prompt_dir = Path(__file__).parent / "ginecarum_prompt"
+    
+    sections = {
+        "system": "system.txt",
+        "example1_user": "example1_user.txt",
+        "example1_assistant": "example1_assistant.txt",
+        "example2_user": "example2_user.txt",
+        "example2_assistant": "example2_assistant.txt",
+        "query_user": "query_user.txt",
+    }
+    
+    prompts = {}
+    for key, filename in sections.items():
+        file_path = prompt_dir / filename
+        with open(file_path, "r", encoding="utf-8") as f:
+            prompts[key] = f.read()
+    
+    return prompts
+
+
 def create_rag_chain() -> RetrievalQAWithSourcesChain:
     """Создаёт RAG chain с Qwen 3 и кастомным ретривером"""
 
     # Создать callback для логирования промптов
     prompt_callback = PromptLoggingCallback()
 
-    # Инициализация Qwen 3 8B с callback
-    llm: OllamaLLM = OllamaLLM(model="qwen3:8b", temperature=0.5, callbacks=[prompt_callback])
-
-    # Загрузить шаблон промпта из файла
-    system_template = load_prompt_template(Path(__file__).parent / "prompt_template_ginecarum.txt")
+    # Инициализация ChatOllama (вместо OllamaLLM) с callback
+    llm = ChatOllama(model="qwen3:8b", temperature=0.5, callbacks=[prompt_callback])
 
     # Создать кастомный ретривер
     # retriever = StubRetriever()  # Для тестирования без ChromaDB
     retriever = CustomChromaRetriever(suffix="4B", use_cpu=True)  # Реальный поиск через ChromaDB
 
-    # Создать промпт с few-shot примерами
-    # Для RetrievalQAWithSourcesChain используем переменную {summaries} для контекста
-    combine_prompt = PromptTemplate(
-        template=system_template + "\n\nКонтекст:\n{summaries}\n\nВопрос: {question}\n\nОтвет:",
-        input_variables=["summaries", "question"],
-    )
+    # Загрузить промпт-темплейты из файлов
+    prompts = load_ginecarum_prompts()
+
+    # Создать ChatPromptTemplate с разными ролями для разных секций
+    combine_prompt = ChatPromptTemplate.from_messages([
+        # System message: основные инструкции
+        SystemMessagePromptTemplate.from_template(prompts["system"]),
+        # Few-shot Example 1 - User message
+        HumanMessagePromptTemplate.from_template(prompts["example1_user"]),
+        # Few-shot Example 1 - Assistant response
+        AIMessagePromptTemplate.from_template(prompts["example1_assistant"]),
+        # Few-shot Example 2 - User message
+        HumanMessagePromptTemplate.from_template(prompts["example2_user"]),
+        # Few-shot Example 2 - Assistant response
+        AIMessagePromptTemplate.from_template(prompts["example2_assistant"]),
+        # Actual query - User message with context and question
+        HumanMessagePromptTemplate.from_template(prompts["query_user"]),
+    ])
 
     # Промпт для форматирования отдельных документов (без index, т.к. он не поддерживается)
     document_prompt = PromptTemplate(template="{page_content}", input_variables=["page_content"])
