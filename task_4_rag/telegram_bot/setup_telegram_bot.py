@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """
+Generated With ChatGPT
+Даже не доработано руками ))
+
 set_webhook.py
 
 Примеры использования:

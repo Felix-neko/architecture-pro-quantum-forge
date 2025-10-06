@@ -2,6 +2,7 @@
 """RAG чат-бот с собственной функцией поиска и RetrievalQAWithSourcesChain"""
 
 import logging
+import re
 from pathlib import Path
 from typing import List, Dict, Any, Tuple, Optional
 import chromadb
@@ -278,6 +279,30 @@ def create_rag_chain() -> RetrievalQAWithSourcesChain:
     return chain
 
 
+def parse_think_and_answer(text: str) -> Tuple[Optional[str], str]:
+    """
+    Извлекает <think> секцию и финальный ответ из текста модели.
+    
+    Args:
+        text: полный текст ответа модели
+        
+    Returns:
+        (think_content, final_answer): кортеж из содержимого <think> (или None) и финального ответа
+    """
+    # Паттерн для извлечения <think>...</think>
+    think_pattern = r'<think>(.*?)</think>'
+    match = re.search(think_pattern, text, re.DOTALL)
+    
+    if match:
+        think_content = match.group(1).strip()
+        # Удаляем <think> секцию из текста, чтобы получить финальный ответ
+        final_answer = re.sub(think_pattern, '', text, flags=re.DOTALL).strip()
+        return think_content, final_answer
+    else:
+        # Нет <think> секции
+        return None, text.strip()
+
+
 def answer_question(chain: RetrievalQAWithSourcesChain, question: str) -> Dict[str, Any]:
     """
     Отвечает на вопрос используя RAG chain
@@ -287,7 +312,7 @@ def answer_question(chain: RetrievalQAWithSourcesChain, question: str) -> Dict[s
         question: вопрос пользователя
 
     Returns:
-        словарь с ответом и найденными документами
+        словарь с ответом, найденными документами и разделенными think/answer секциями
     """
     logger.info("\n" + "=" * 80)
     logger.info(f"ВОПРОС ПОЛЬЗОВАТЕЛЯ: {question}")
@@ -295,6 +320,14 @@ def answer_question(chain: RetrievalQAWithSourcesChain, question: str) -> Dict[s
 
     # Получить ответ от chain (промпт будет залогирован через callback)
     result = chain.invoke({"question": question})
+    
+    # Разделить think секцию и финальный ответ
+    raw_answer = result.get('answer', '')
+    think_content, final_answer = parse_think_and_answer(raw_answer)
+    
+    # Добавить в результат отдельные поля
+    result['think'] = think_content
+    result['final_answer'] = final_answer
 
     return result
 
@@ -322,11 +355,17 @@ def main() -> None:
         # Получение ответа через RAG chain
         result = answer_question(chain, question)
 
-        print(f"\nОтвет: {result.get('answer', 'Нет ответа')}\n")
+        # Показать think-секцию, если есть
+        if result.get('think'):
+            print(f"\n💭 Think-секция:")
+            print(f"{result['think']}\n")
+        
+        # Показать финальный ответ
+        print(f"✅ Ответ: {result.get('final_answer', 'Нет ответа')}\n")
 
         # Показать источники
         if result.get("sources"):
-            print(f"Источники: {result['sources']}\n")
+            print(f"📚 Источники: {result['sources']}\n")
 
         # Показать найденные чанки с метаданными
         if result.get("source_documents"):
