@@ -23,7 +23,7 @@ from langchain_core.callbacks import CallbackManagerForRetrieverRun, BaseCallbac
 from langchain_core.outputs import LLMResult
 
 # Настройка логирования
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S")
+
 logger = logging.getLogger(__name__)
 
 
@@ -62,11 +62,13 @@ class CustomChromaRetriever(BaseRetriever):
     collection_name: str = "kb_embeddings"
     k: int = 4  # количество результатов
     use_cpu: bool = False  # Использовать CPU для embeddings
+    use_chunk_filtering: bool = False  # Использовать ли фильтрацию чанков от опасных сущностей
 
-    def __init__(self, suffix: str = "4B", use_cpu: bool = True, **kwargs):
+    def __init__(self, suffix: str = "4B", use_cpu: bool = True, use_chunk_filtering: bool = True, **kwargs):
         super().__init__(**kwargs)
         self.suffix = suffix
         self.use_cpu = use_cpu
+        self.use_chunk_filtering = use_chunk_filtering
 
         # Путь к ChromaDB с учётом суффикса
         chroma_db_path = Path(__file__).parent.parent / "task_3_vector_index" / "chroma" / f"chroma-{suffix}"
@@ -221,7 +223,7 @@ def load_ginecarum_prompts() -> Dict[str, str]:
     return prompts
 
 
-def create_rag_chain() -> RetrievalQAWithSourcesChain:
+def create_rag_chain(use_chunk_filtering: bool = True) -> RetrievalQAWithSourcesChain:
     """Создаёт RAG chain с Qwen 3 и кастомным ретривером"""
 
     # Создать callback для логирования промптов
@@ -232,7 +234,10 @@ def create_rag_chain() -> RetrievalQAWithSourcesChain:
 
     # Создать кастомный ретривер
     # retriever = StubRetriever()  # Для тестирования без ChromaDB
-    retriever = CustomChromaRetriever(suffix="4B", use_cpu=True)  # Реальный поиск через ChromaDB
+
+    retriever = CustomChromaRetriever(
+        suffix="4B", use_cpu=True, use_chunk_filtering=use_chunk_filtering
+    )  # Реальный поиск через ChromaDB
 
     # Загрузить промпт-темплейты из файлов
     prompts = load_ginecarum_prompts()
@@ -282,21 +287,21 @@ def create_rag_chain() -> RetrievalQAWithSourcesChain:
 def parse_think_and_answer(text: str) -> Tuple[Optional[str], str]:
     """
     Извлекает <think> секцию и финальный ответ из текста модели.
-    
+
     Args:
         text: полный текст ответа модели
-        
+
     Returns:
         (think_content, final_answer): кортеж из содержимого <think> (или None) и финального ответа
     """
     # Паттерн для извлечения <think>...</think>
-    think_pattern = r'<think>(.*?)</think>'
+    think_pattern = r"<think>(.*?)</think>"
     match = re.search(think_pattern, text, re.DOTALL)
-    
+
     if match:
         think_content = match.group(1).strip()
         # Удаляем <think> секцию из текста, чтобы получить финальный ответ
-        final_answer = re.sub(think_pattern, '', text, flags=re.DOTALL).strip()
+        final_answer = re.sub(think_pattern, "", text, flags=re.DOTALL).strip()
         return think_content, final_answer
     else:
         # Нет <think> секции
@@ -306,16 +311,16 @@ def parse_think_and_answer(text: str) -> Tuple[Optional[str], str]:
 def format_source_documents(source_documents: List[Document]) -> str:
     """
     Форматирует найденные документы в текстовый блок.
-    
+
     Args:
         source_documents: список найденных документов с метаданными
-        
+
     Returns:
         отформатированный текст с информацией о чанках
     """
     if not source_documents:
         return ""
-    
+
     lines = ["Найденные чанки:"]
     for i, doc in enumerate(source_documents, 1):
         source = doc.metadata.get("source", "Неизвестно")
@@ -325,7 +330,7 @@ def format_source_documents(source_documents: List[Document]) -> str:
         lines.append(f"  [{i}] Источник: {source}")
         lines.append(f"      Токены: {token_range}, Символы: {char_range}")
         lines.append(f"      {snippet}...")
-    
+
     return "\n".join(lines)
 
 
@@ -346,14 +351,14 @@ def answer_question(chain: RetrievalQAWithSourcesChain, question: str) -> Dict[s
 
     # Получить ответ от chain (промпт будет залогирован через callback)
     result = chain.invoke({"question": question})
-    
+
     # Разделить think секцию и финальный ответ
-    raw_answer = result.get('answer', '')
+    raw_answer = result.get("answer", "")
     think_content, final_answer = parse_think_and_answer(raw_answer)
-    
+
     # Добавить в результат отдельные поля
-    result['think'] = think_content
-    result['final_answer'] = final_answer
+    result["think"] = think_content
+    result["final_answer"] = final_answer
 
     return result
 
@@ -362,7 +367,7 @@ def main() -> None:
     """Основная функция"""
 
     print("Инициализация RAG чат-бота с кастомным ретривером...")
-    chain = create_rag_chain()
+    chain = create_rag_chain(use_chunk_filtering=True)
     print("✓ Готово!\n")
 
     print("RAG чат-бот готов! (введите 'exit' или 'выход' для завершения)")
@@ -382,10 +387,10 @@ def main() -> None:
         result = answer_question(chain, question)
 
         # Показать think-секцию, если есть
-        if result.get('think'):
+        if result.get("think"):
             print(f"\n💭 Think-секция:")
             print(f"{result['think']}\n")
-        
+
         # Показать финальный ответ
         print(f"✅ Ответ: {result.get('final_answer', 'Нет ответа')}\n")
 
@@ -401,4 +406,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S")
     main()
