@@ -26,11 +26,43 @@ from ragas.metrics import faithfulness, answer_relevancy, context_precision, con
 try:
     from langchain_ollama import ChatOllama
     from langchain_huggingface import HuggingFaceEmbeddings
+    from langchain_core.callbacks import BaseCallbackHandler
+    from langchain_core.outputs import LLMResult
     from sentence_transformers import SentenceTransformer
 except Exception as e:
     print(f"Ошибка импорта: {e}")
     print("Требуются пакеты: pip install langchain-ollama langchain-huggingface")
     sys.exit(1)
+
+
+class LLMLoggingCallback(BaseCallbackHandler):
+    """Callback для логирования всех запросов к LLM и ответов"""
+    
+    def __init__(self):
+        self.request_count = 0
+    
+    def on_llm_start(self, serialized, prompts, **kwargs):
+        """Вызывается при начале запроса к LLM"""
+        self.request_count += 1
+        print(f"\n{'='*80}")
+        print(f"🔵 LLM REQUEST #{self.request_count}")
+        print(f"{'='*80}")
+        for i, prompt in enumerate(prompts, 1):
+            print(f"\n--- Промпт {i}/{len(prompts)} ---")
+            print(prompt)
+            print(f"--- Конец промпта {i} ---")
+    
+    def on_llm_end(self, response: LLMResult, **kwargs):
+        """Вызывается при получении ответа от LLM"""
+        print(f"\n{'='*80}")
+        print(f"🟢 LLM RESPONSE #{self.request_count}")
+        print(f"{'='*80}")
+        for i, generation in enumerate(response.generations, 1):
+            for j, gen in enumerate(generation, 1):
+                print(f"\n--- Ответ {i}.{j} ---")
+                print(gen.text)
+                print(f"--- Конец ответа {i}.{j} ---")
+        print(f"{'='*80}\n")
 
 
 def load_dataset_json(path: str):
@@ -49,6 +81,9 @@ def load_dataset_json(path: str):
 
 
 def main():
+    # Настраиваем логирование в самом начале
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", "-i", required=True, help="Path to dataset.json")
     parser.add_argument("--out", "-o", default="ragas_results_ollama.json", help="Output path")
@@ -93,8 +128,16 @@ def main():
     # Создаём ChatOllama из langchain-ollama (новая версия)
     print(f"Подключение к Ollama модели: {args.model}...")
     
-    # Включаем verbose для логирования LLM запросов/ответов
-    chat_ollama = ChatOllama(model=args.model, temperature=0.0, verbose=True)
+    # Создаём callback для логирования всех запросов и ответов
+    llm_callback = LLMLoggingCallback()
+    
+    # Включаем verbose и добавляем callback для детального логирования
+    chat_ollama = ChatOllama(
+        model=args.model, 
+        temperature=0.0, 
+        verbose=True,
+        callbacks=[llm_callback]
+    )
     llm_wrapper = LangchainLLMWrapper(chat_ollama)
 
     print("Запускаю evaluate() с локальными моделями — это может занять немного времени...")
@@ -116,11 +159,6 @@ def main():
     num_batches = (total_tasks + args.batch_size - 1) // args.batch_size
     print(f"\n🔢 Общее количество задач: {len(samples)} примеров × {len(metrics)} метрик = {total_tasks} задач")
     print(f"   Будет обработано в {num_batches} батчах по {args.batch_size} задач\n")
-    
-    # Настраиваем логирование для вывода LLM запросов/ответов
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    logger = logging.getLogger('ragas')
-    logger.setLevel(logging.DEBUG)
     
     result = evaluate(
         eval_dataset, 

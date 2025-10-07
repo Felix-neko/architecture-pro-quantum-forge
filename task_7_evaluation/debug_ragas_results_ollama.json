@@ -1,0 +1,62 @@
+[
+  {
+    "user_input": "Кто написал роман Война и мир?",
+    "retrieved_contexts": [
+      "Роман «Война и мир» написал Лев Толстой."
+    ],
+    "response": "Толстой",
+    "reference": "Лев Толстой",
+    "faithfulness": 1.0,
+    "answer_relevancy": 0.7813904840263639,
+    "context_precision": 0.9999999999,
+    "context_recall": 1.0
+  },
+  {
+    "user_input": "Сколько спутников у Марса?",
+    "retrieved_contexts": [
+      "У Марса два спутника — Фобос и Деймос."
+    ],
+    "response": "У Марса два спутника: Фобос и Деймос.",
+    "reference": "Два — Фобос и Деймос",
+    "faithfulness": 1.0,
+    "answer_relevancy": 0.6566065956788327,
+    "context_precision": 0.9999999999,
+    "context_recall": 1.0
+  },
+  {
+    "user_input": "Какая столица Японии?",
+    "retrieved_contexts": [
+      "Токио — столица Японии."
+    ],
+    "response": "Столица Японии — Токио.",
+    "reference": "Токио",
+    "faithfulness": NaN,
+    "answer_relevancy": NaN,
+    "context_precision": 0.9999999999,
+    "context_recall": NaN
+  },
+  {
+    "user_input": "Какой химический символ у воды?",
+    "retrieved_contexts": [
+      "Химическая формула воды — H2O."
+    ],
+    "response": "Формула воды — H2O.",
+    "reference": "H2O",
+    "faithfulness": 1.0,
+    "answer_relevancy": 0.7706015926362294,
+    "context_precision": 0.9999999999,
+    "context_recall": 1.0
+  },
+  {
+    "user_input": "Кто был первым президентом США?",
+    "retrieved_contexts": [
+      "Первым президентом США был Джордж Вашингтон."
+    ],
+    "response": "Вашингтон.",
+    "reference": "Джордж Вашингтон",
+    "faithfulness": 1.0,
+    "answer_relevancy": 0.5690211914837623,
+    "context_precision": 0.9999999999,
+    "context_recall": 1.0
+  }
+]
