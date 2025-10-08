@@ -20,7 +20,7 @@ from ragas import evaluate
 from ragas.dataset_schema import EvaluationDataset
 from ragas.embeddings import LangchainEmbeddingsWrapper
 from ragas.llms import LangchainLLMWrapper
-from ragas.metrics import faithfulness, answer_relevancy, context_precision, context_recall
+from ragas.metrics import answer_relevancy
 
 # LangChain imports
 try:
@@ -66,6 +66,17 @@ class LLMLoggingCallback(BaseCallbackHandler):
 
 
 def load_dataset_json(path: str):
+    """Загружает датасет из JSON. 
+    
+    Ожидаемая структура:
+    {
+        "questions": ["вопрос1", "вопрос2", ...],
+        "answers": ["ответ1", "ответ2", ...],
+        "ground_truths": ["эталон1", "эталон2", ...]  # опционально
+    }
+    
+    RAG-система должна сама извлекать контексты, поэтому поле contexts не требуется.
+    """
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
     # Конвертируем в список примеров для EvaluationDataset
@@ -75,8 +86,12 @@ def load_dataset_json(path: str):
         q = data["questions"][i]
         resp = data["answers"][i] if i < len(data.get("answers", [])) else ""
         ref = data["ground_truths"][i] if i < len(data.get("ground_truths", [])) else None
-        contexts = data["contexts"][i] if i < len(data.get("contexts", [])) else None
-        examples.append({"user_input": q, "response": resp, "reference": ref, "retrieved_contexts": contexts})
+        
+        example = {"user_input": q, "response": resp}
+        if ref is not None:
+            example["reference"] = ref
+        
+        examples.append(example)
     return examples
 
 
@@ -144,12 +159,15 @@ def main():
     print(f"Параметры: batch_size={args.batch_size} (количество задач оценки, обрабатываемых параллельно)")
     
     # Определяем метрики для оценки
+    # Используем только метрики, не требующие явных контекстов,
+    # так как RAG-система сама извлекает контексты
     metrics = [
-        faithfulness,         # Верность ответа контексту (нет галлюцинаций)
         answer_relevancy,     # Релевантность ответа вопросу
-        context_precision,    # Точность извлечённого контекста
-        context_recall        # Полнота контекста (покрывает ли ground truth)
     ]
+    
+    # Примечание: метрики faithfulness, context_precision и context_recall
+    # требуют поле retrieved_contexts, которое RAG-система должна возвращать
+    # вместе с ответом, если нужна их оценка
     
     print(f"\n📊 Метрики для оценки ({len(metrics)} метрик):")
     for i, metric in enumerate(metrics, 1):
