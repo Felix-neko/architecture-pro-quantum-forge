@@ -22,6 +22,9 @@
   
   # Для использования русских промптов:
   python evaluate_rag_responses.py --input data.yaml --out results.json --use-russian-templates
+  
+  # С увеличенным таймаутом (для медленных моделей):
+  python evaluate_rag_responses.py --input data.yaml --out results.json --timeout 1200
 
 Примечание: Скрипт автоматически применяет русские промпты к метрикам Ragas.
 Если russian_prompts.py не найден, будут использованы стандартные англоязычные промпты.
@@ -34,6 +37,7 @@ import yaml
 from pathlib import Path
 from ragas import evaluate
 from ragas.dataset_schema import EvaluationDataset
+from ragas.run_config import RunConfig
 from ragas.embeddings import LangchainEmbeddingsWrapper
 from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import answer_relevancy, faithfulness, context_precision, context_recall
@@ -254,10 +258,9 @@ def main():
         help="HuggingFace embedding model (default: Qwen3-Embedding-4B)",
     )
     parser.add_argument("--batch_size", type=int, default=8)
+    parser.add_argument("--timeout", type=int, default=600, help="Timeout in seconds for each evaluation task")
     parser.add_argument(
-        "--use-russian-templates",
-        action="store_true",
-        help="Use Russian templates for evaluation (default: False)"
+        "--use-russian-templates", action="store_true", help="Use Russian templates for evaluation (default: False)"
     )
     args = parser.parse_args()
 
@@ -306,7 +309,9 @@ def main():
     llm_wrapper = LangchainLLMWrapper(chat_ollama)
 
     print("Запускаю evaluate() с локальными моделями — это может занять немного времени...")
-    print(f"Параметры: batch_size={args.batch_size} (количество задач оценки, обрабатываемых параллельно)")
+    print(f"Параметры: batch_size={args.batch_size}, timeout={args.timeout}s")
+    print(f"  (batch_size - количество задач оценки, обрабатываемых параллельно)")
+    print(f"  (timeout - максимальное время ожидания для каждой задачи)")
 
     # Применяем русские промпты к метрикам, если запрошено
     if args.use_russian_templates:
@@ -317,9 +322,9 @@ def main():
         if RUSSIAN_PROMPTS_AVAILABLE:
             print(f"📄 Файл russian_prompts.py найден и загружен")
             print(f"📦 PydanticPrompt объекты: {'✓ Доступны' if PROMPTS else '✗ Недоступны'}")
-            
+
             russian_prompts_applied = apply_russian_prompts_to_metrics()
-            
+
             if russian_prompts_applied:
                 print("\n✅ Русские промпты с few-shot примерами успешно применены ко всем метрикам!")
                 print("   Модель-критик будет использовать русскоязычные инструкции и примеры.")
@@ -328,7 +333,7 @@ def main():
         else:
             print("⚠️  Файл russian_prompts.py не найден. Используются стандартные промпты Ragas.")
             print("   Для использования русских промптов убедитесь, что файл russian_prompts.py доступен.")
-            
+
         print("=" * 80 + "\n")
     else:
         print("\nℹ️  Использование русских промптов отключено. Применяются стандартные промпты Ragas.")
@@ -358,13 +363,16 @@ def main():
     print(f"\n🔢 Общее количество задач: {len(samples)} примеров × {len(metrics)} метрик = {total_tasks} задач")
     print(f"   Будет обработано в {num_batches} батчах по {args.batch_size} задач\n")
 
+    # Создаём конфигурацию с увеличенным таймаутом
+    run_config = RunConfig(timeout=args.timeout, max_workers=args.batch_size)
+
     result = evaluate(
         eval_dataset,
         llm=llm_wrapper,
         embeddings=ragas_embeddings,
         metrics=metrics,  # Явно передаём метрики
         show_progress=True,
-        batch_size=args.batch_size,
+        run_config=run_config,  # Увеличенный таймаут для медленных моделей
     )
 
     # Конвертируем результат в словарь для JSON-сериализации
