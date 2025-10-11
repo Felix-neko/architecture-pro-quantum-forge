@@ -4,6 +4,8 @@ from typing import Dict, List, Tuple, Union
 import logging
 import pickle
 
+import numpy as np
+import torch
 from sentence_transformers import SentenceTransformer
 import yaml
 
@@ -112,6 +114,7 @@ def encode_documents(
 
         # Encode all chunks at once
         embeddings = mdl.encode(chunk_texts, show_progress_bar=False)
+        embedding = np.astype(embeddings, np.float32)
 
         # Create TextEmbeddingsInfo object
         result.append(TextEmbeddingsInfo(original_text_path=path, embeddings=embeddings, chunks=chunks))
@@ -121,23 +124,35 @@ def encode_documents(
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
-    qwen3_params = [("0.6B", False), ("4B", True)]  # (model_suffix, use_cpu)
+    qwen3_params = [("0.6B", True, False), ("4B", True, True)]  # (model_suffix, use_cpu, use_8_bit)
     documents = load_documents_in_folder(
         Path(__file__).parent.parent / "task_2_sample_dataset/arcanum_articles/text_output_replaced"
     )
     questions = yaml.safe_load(open(Path(__file__).parent / "questions.yaml", "r"))
 
-    for suffix, use_cpu in qwen3_params:
+    for suffix, use_cpu, use_8_bit in qwen3_params:
         logging.info("=========")
-        logging.info(f"Qwen3-{suffix}")
+        logging.info(f"Qwen3-{suffix}, 8bit: {use_8_bit}")
         logging.info(f"encoding documents...")
+
+        # Load model with 8-bit quantization using bitsandbytes
+        # Requires: pip install bitsandbytes (or: uv add bitsandbytes)
+        #
+        # Для 4-bit квантизации (еще меньше памяти, но немного ниже качество):
+        # model_kwargs={"load_in_4bit": True, "device_map": "auto"}
         model = SentenceTransformer(
             f"Qwen/Qwen3-Embedding-{suffix}",
-            device="cpu" if use_cpu else None,
+            device="cuda" if torch.cuda.is_available() else "cpu",
+            model_kwargs={
+                "load_in_8bit": use_8_bit,
+                "device_map": "auto",
+            },  # Enable 8-bit quantization (~4GB RAM вместо ~8GB)
             tokenizer_kwargs={"padding_side": "left"},
         )
+
         docs_embeddings = encode_documents(model, documents)
         questions_embeddings = model.encode(questions)  # Считаем вопросы короткими, по каждому из них просто 1 вектор
+        del model
 
         logging.info("saving embeddings...")
         pickle.dump(docs_embeddings, open(Path(__file__).parent / f"doc_embeddings_chunked-{suffix}.pck", "wb"))

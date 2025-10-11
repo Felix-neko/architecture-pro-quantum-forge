@@ -69,8 +69,11 @@ def load_and_index_kb_embeddings(
     logging.info(f"Total vectors (chunks): {n_vectors},\tembedding dimension: {d}")
     logging.info(f"From {len(kb_embeddings_list)} documents")
 
+    # Ensure embeddings are in float32 format and C-contiguous for FAISS
+    kb_embeddings = np.ascontiguousarray(kb_embeddings, dtype=np.float32)
+
     # Create and populate FAISS index
-    index = faiss.IndexHNSWFlat(d, HNSW_M, faiss.METRIC_L2)
+    index = faiss.IndexHNSWFlat(d, HNSW_M, faiss.METRIC_INNER_PRODUCT)
     index.hnsw.efConstruction = HNSW_EF_CONSTRUCTION
     index.hnsw.efSearch = HNSW_EF_SEARCH
 
@@ -88,7 +91,7 @@ def load_and_index_kb_embeddings(
         pass
 
     chroma_collection = chroma_client.create_collection(
-        name=collection_name, metadata={"hnsw:space": "l2"}  # L2 distance like FAISS
+        name=collection_name, metadata={"hnsw:space": "cosine"}  # L2 distance like FAISS
     )
 
     # Prepare data for Chroma DB
@@ -99,8 +102,8 @@ def load_and_index_kb_embeddings(
         n_chunks = doc_info.embeddings.shape[0]
 
         for i, chunk_info in enumerate(doc_info.chunks):
-            # Используем .dict() для получения метаданных и добавляем source_path
-            metadata = chunk_info.dict()
+            # Используем .model_dump() для получения метаданных (Pydantic v2) и добавляем source_path
+            metadata = chunk_info.model_dump() if hasattr(chunk_info, "model_dump") else chunk_info.dict()
             metadata["source_path"] = str(doc_info.original_text_path)
             chunk_metadata_list.append(metadata)
             chunk_idx += 1
@@ -136,6 +139,9 @@ if __name__ == "__main__":
         q_embeddings = pickle.load(open(questions_embeddings_path, "rb"))
         n_questions = q_embeddings.shape[0]
 
+        # Ensure questions embeddings are in float32 format for FAISS
+        q_embeddings = np.ascontiguousarray(q_embeddings, dtype=np.float32)
+
         d_vals, i_vals = index.search(q_embeddings, K_SEARCH)
         print(d_vals)
         print(i_vals)
@@ -152,8 +158,17 @@ if __name__ == "__main__":
             # Query Chroma DB
             print("\nChroma DB results:")
             chroma_results = chroma_collection.query(query_embeddings=[q_embeddings[i].tolist()], n_results=K_SEARCH)
+            print(chroma_results["distances"])
             for j, metadata in enumerate(chroma_results["metadatas"][0]):
+                # Debug: print metadata keys to see what's actually returned
+                if j == 0 and i == 0:
+                    print(f"DEBUG - Metadata keys: {metadata.keys()}")
+
                 print(f"{j}: {Path(metadata['source_path']).name}")
-                print(f"   Token range: ({metadata['token_range_start']}, {metadata['token_range_end']})")
-                print(f"   Char range: ({metadata['char_range_start']}, {metadata['char_range_end']})")
-                # print(f"   Text: {metadata['text'][:100]}...")
+                print(
+                    f"   Token range: ({metadata.get('token_range_start', 'N/A')}, {metadata.get('token_range_end', 'N/A')})"
+                )
+                print(
+                    f"   Char range: ({metadata.get('char_range_start', 'N/A')}, {metadata.get('char_range_end', 'N/A')})"
+                )
+                print(f"   Text: {metadata.get('text', '')[:100]}...")
