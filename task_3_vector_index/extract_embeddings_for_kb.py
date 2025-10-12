@@ -5,9 +5,9 @@ import logging
 import pickle
 
 import numpy as np
-import torch
 from sentence_transformers import SentenceTransformer
 import yaml
+from contexttimer import Timer
 
 from task_3_vector_index.pydantic_dto import TextChunkInfo, TextEmbeddingsInfo
 
@@ -97,56 +97,57 @@ def encode_documents(
     tokenizer = mdl.tokenizer
     result: List[TextEmbeddingsInfo] = []
 
-    for doc_idx, (path, text) in enumerate(documents.items()):
-        logging.info(f"Processing document {doc_idx + 1}/{len(documents)}: {path.name}")
+    with Timer() as timer:
+        for doc_idx, (path, text) in enumerate(documents.items()):
+            logging.info(f"Processing document {doc_idx + 1}/{len(documents)}: {path.name}")
 
-        # Split document into chunks
-        chunks = chunk_text_tokenwise(text, tokenizer, chunk_size=chunk_size, stride=overlap_size)
+            # Split document into chunks
+            chunks = chunk_text_tokenwise(text, tokenizer, chunk_size=chunk_size, stride=overlap_size)
 
-        if not chunks:
-            logging.warning(f"Document {path.name} produced no chunks, skipping")
-            continue
+            if not chunks:
+                logging.warning(f"Document {path.name} produced no chunks, skipping")
+                continue
 
-        logging.info(f"  Split into {len(chunks)} chunks")
+            logging.info(f"  Split into {len(chunks)} chunks")
 
-        # Extract chunk texts for encoding
-        chunk_texts = [chunk.text for chunk in chunks]
+            # Extract chunk texts for encoding
+            chunk_texts = [chunk.text for chunk in chunks]
 
-        # Encode all chunks at once
-        embeddings = mdl.encode(chunk_texts, show_progress_bar=False)
-        embedding = np.astype(embeddings, np.float32)
+            # Encode all chunks at once
 
-        # Create TextEmbeddingsInfo object
-        result.append(TextEmbeddingsInfo(original_text_path=path, embeddings=embeddings, chunks=chunks))
+            embeddings = mdl.encode(chunk_texts, show_progress_bar=False)
 
+            embeddings = np.astype(embeddings, np.float32)
+
+            # Create TextEmbeddingsInfo object
+            result.append(TextEmbeddingsInfo(original_text_path=path, embeddings=embeddings, chunks=chunks))
+    logging.info(f"Encoding time: {timer.elapsed:.2f} seconds")
     return result
 
 
 if __name__ == "__main__":
-    logging.getLogger().setLevel(logging.INFO)
-    qwen3_params = [("0.6B", True, False), ("4B", True, True)]  # (model_suffix, use_cpu, use_8_bit)
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+    qwen3_emb_params = [
+        ("0.6B", False, False),
+        ("4B", False, True),
+        ("4B", True, False),
+    ]  # (model_suffix, use_cpu, use_8_bit)
     documents = load_documents_in_folder(
         Path(__file__).parent.parent / "task_2_sample_dataset/arcanum_articles/text_output_replaced"
     )
     questions = yaml.safe_load(open(Path(__file__).parent / "questions.yaml", "r"))
 
-    for suffix, use_cpu, use_8_bit in qwen3_params:
+    for sfx, use_cpu, use_8bit in qwen3_emb_params:
         logging.info("=========")
-        logging.info(f"Qwen3-{suffix}, 8bit: {use_8_bit}")
+        logging.info(f"Qwen3-{sfx}, cpu: {use_cpu}, 8bit: {use_8bit}")
         logging.info(f"encoding documents...")
 
         # Load model with 8-bit quantization using bitsandbytes
         # Requires: pip install bitsandbytes (or: uv add bitsandbytes)
-        #
-        # Для 4-bit квантизации (еще меньше памяти, но немного ниже качество):
-        # model_kwargs={"load_in_4bit": True, "device_map": "auto"}
         model = SentenceTransformer(
-            f"Qwen/Qwen3-Embedding-{suffix}",
-            device="cuda" if torch.cuda.is_available() else "cpu",
-            model_kwargs={
-                "load_in_8bit": use_8_bit,
-                "device_map": "auto",
-            },  # Enable 8-bit quantization (~4GB RAM вместо ~8GB)
+            f"Qwen/Qwen3-Embedding-{sfx}",
+            device="cpu" if use_cpu else "cuda",
+            model_kwargs={"load_in_8bit": use_8bit},  # Enable 8-bit quantization (~4GB RAM вместо ~8GB)
             tokenizer_kwargs={"padding_side": "left"},
         )
 
@@ -155,7 +156,9 @@ if __name__ == "__main__":
         del model
 
         logging.info("saving embeddings...")
-        pickle.dump(docs_embeddings, open(Path(__file__).parent / f"doc_embeddings_chunked-{suffix}.pck", "wb"))
-        pickle.dump(questions_embeddings, open(Path(__file__).parent / f"questions_embeddings-{suffix}.pck", "wb"))
+        with open(Path(__file__).parent / f"doc_embeddings_chunked-{sfx}{'-8bit' if use_8bit else ''}.pck", "wb") as f:
+            pickle.dump(docs_embeddings, f)
+        with open(Path(__file__).parent / f"questions_embeddings-{sfx}{'-8bit' if use_8bit else ''}.pck", "wb") as f:
+            pickle.dump(questions_embeddings, f)
         logging.info(f"Saved {len(docs_embeddings)} documents with chunked embeddings")
         logging.info("embeddings saved...")

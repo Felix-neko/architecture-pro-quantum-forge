@@ -122,20 +122,28 @@ def load_and_index_kb_embeddings(
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
-    qwen_suffixes = ["4B", "0.6B"]
+    qwen3_emb_params = [
+        ("0.6B", False, False),
+        ("4B", False, True),
+        ("4B", True, False),
+    ]  # (model_suffix, use_cpu, use_8_bit)
 
     questions = yaml.safe_load(open(Path(__file__).parent / f"questions.yaml", "r"))
 
-    for suffix in qwen_suffixes:
+    for sfx, use_cpu, use_8bit in qwen3_emb_params:
+        # Формируем полный суффикс с учётом квантизации
+        full_suffix = f"{sfx}{'-8bit' if use_8bit else ''}"
+        
         print("")
         print("=========")
-        print(f"Using Qwen3-{suffix}")
+        print(f"Using Qwen3-{sfx}" + (" (8-bit quantized)" if use_8bit else "") + (" (CPU)" if use_cpu else " (GPU)"))
 
         index, chroma_collection, paths = load_and_index_kb_embeddings(
-            kb_embeddings_path=Path(__file__).parent / f"doc_embeddings_chunked-{suffix}.pck", suffix=suffix
+            kb_embeddings_path=Path(__file__).parent / f"doc_embeddings_chunked-{full_suffix}.pck", 
+            suffix=full_suffix
         )
 
-        questions_embeddings_path = Path(__file__).parent / f"questions_embeddings-{suffix}.pck"
+        questions_embeddings_path = Path(__file__).parent / f"questions_embeddings-{full_suffix}.pck"
         q_embeddings = pickle.load(open(questions_embeddings_path, "rb"))
         n_questions = q_embeddings.shape[0]
 
