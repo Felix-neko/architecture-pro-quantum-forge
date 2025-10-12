@@ -13,8 +13,7 @@ from dotenv import load_dotenv
 import uvicorn
 
 # Импортируем RAG функции из rag_example.py
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from rag_example import create_rag_chain, answer_question
+from task_4_rag.rag_example import create_rag_chain, answer_question
 
 # Загружаем переменные окружения из .env файла
 # Это позволяет хранить чувствительные данные (токены, ключи) вне кода
@@ -92,4 +91,7 @@ async def webhook_handler(update: Update) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
+    import logging
+
+    logging.getLogger().setLevel(logging.DEBUG)
     uvicorn.run(app, host=HOST, port=PORT)

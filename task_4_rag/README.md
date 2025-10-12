@@ -2,6 +2,8 @@
 
 Здесь мы создаём простейшую RAG-систему (без реранкинга) с помощью LangChain в виде консольного вопрос-ответного бота.
 
+ТГ-бот тоже будет, но в task5 = )
+
 ## Архитектура RAG-системы
 
 Система состоит из следующих компонентов:
@@ -68,8 +70,8 @@ Callback для логирования промптов и ответов LLM в
 #### `load_ginecarum_prompts() -> Dict[str, str]`
 Загружает секции промпта из папки `ginecarum_prompt/`:
 - `system.txt` — системная инструкция
-- `example1_user.txt`, `example1_assistant.txt` — первый few-shot пример
-- `example2_user.txt`, `example2_assistant.txt` — второй few-shot пример
+- `example1_user.txt`, `example1_assistant.txt` — первый few-shot-пример
+- `example2_user.txt`, `example2_assistant.txt` — второй few-shot-пример
 - `query_user.txt` — шаблон для реального запроса
 
 **Возвращает:** словарь `{секция: текст_промпта}`
