@@ -27,7 +27,6 @@ def update_embeddings(
     new_files: List[Path],
     modified_files: List[Path],
     deleted_files: List[Path],
-    qwen3_suffix="4B",
 ) -> Path:
     """
     Копирует старую директорию ChromaDB в new_chroma_dir (если old_chroma_dir_path == None, то создаёт там новую базу).
@@ -40,7 +39,6 @@ def update_embeddings(
         new_files: список новых файлов для добавления
         modified_files: список измененных файлов для обновления
         deleted_files: список удаленных файлов
-        qwen3_suffix: суффикс модели Qwen ("0.6B" или "4B")
 
     Returns:
         путь к новой ChromaDB
@@ -85,13 +83,15 @@ def update_embeddings(
     if files_to_add:
         logging.info(f"➕ Добавление {len(files_to_add)} файлов в базу (батчами по {N_DOCS_PER_BATCH})...")
 
-        # Загрузить модель эмбеддингов
-        use_cpu = True  # Можно сделать параметром
+        # Загрузить модель эмбеддингов с 8-битным квантованием на GPU
+        logging.info("🔧 Загрузка модели Qwen3-Embedding-4B с 8-битным квантованием на GPU...")
         model = SentenceTransformer(
-            f"Qwen/Qwen3-Embedding-{qwen3_suffix}",
-            device="cpu" if use_cpu else None,
+            "Qwen/Qwen3-Embedding-4B",
+            device="cuda",
+            model_kwargs={"load_in_8bit": True},
             tokenizer_kwargs={"padding_side": "left"},
         )
+        logging.info("✅ Модель загружена")
 
         # Обработка файлов батчами
         chunk_idx = 0
@@ -150,7 +150,6 @@ def update_kb_index(
     doc_dir_path: Path,
     new_chroma_dir_path: Path,
     metadata_db_path: Path = Path(__file__).parent / "metadata.db",
-    qwen3_suffix: str = "4B",
 ) -> Path:
     """
     Обновляем векторный индекс базы знаний:
@@ -212,7 +211,6 @@ def update_kb_index(
         new_files=new_files,
         modified_files=modified_files,
         deleted_files=deleted_files,
-        qwen3_suffix=qwen3_suffix,
     )
 
     # 6. Записать информацию о новой версии в БД
@@ -235,72 +233,6 @@ def update_kb_index(
 
     logging.info("=== Обновление векторного индекса завершено ===")
     return new_chroma_path
-
-
-def drop_old_indexes(metadata_db_path: Path, max_age=timedelta(days=3)):
-    """
-    Открывает БД метаданных, ищет VectorIndex старше max_age от datetime.now(), удаляет их папки c ChromaDB,
-    потом удаляет из базы метаданных и информацию об этих VectorIndex
-
-    Args:
-        metadata_db_path: путь к БД метаданных
-        max_age: максимальный возраст индекса (по умолчанию 3 дня)
-    """
-    logging.info("=== Начало удаления старых индексов ===")
-
-    # 1. Открыть БД метаданных
-    engine = create_engine(f"sqlite:///{metadata_db_path}", echo=False)
-    Base.metadata.create_all(engine)
-    logging.info(f"✅ БД метаданных: {metadata_db_path}")
-
-    # 2. Найти старые версии индекса
-    cutoff_time = datetime.utcnow() - max_age
-    logging.info(f"🔍 Поиск индексов старше {max_age} (до {cutoff_time})")
-
-    deleted_count = 0
-    deleted_dirs = []
-
-    with Session(engine) as session:
-        # Запрос всех версий старше cutoff_time
-        stmt = select(VectorIndexVersion).where(VectorIndexVersion.created_at < cutoff_time)
-        old_versions = session.scalars(stmt).all()
-
-        if not old_versions:
-            logging.info("✅ Старых индексов не найдено")
-            return
-
-        logging.info(f"📊 Найдено старых индексов для удаления: {len(old_versions)}")
-
-        for version in old_versions:
-            chroma_path = Path(version.path)
-
-            # Удалить папку ChromaDB
-            if chroma_path.exists() and chroma_path.is_dir():
-                try:
-                    shutil.rmtree(chroma_path, ignore_errors=False)
-                    logging.info(f"🗑️  Удалена папка: {chroma_path}")
-                    deleted_dirs.append(str(chroma_path))
-                except Exception as e:
-                    logging.warning(f"⚠️  Ошибка при удалении папки {chroma_path}: {e}")
-            else:
-                logging.warning(f"⚠️  Папка не существует: {chroma_path}")
-
-            # Удалить запись из БД (каскадно удалятся и DocHash)
-            logging.info(
-                f"🗑️  Удаление VectorIndexVersion (ID: {version.id}, "
-                f"created: {version.created_at}, docs: {len(version.doc_hashes)})"
-            )
-            session.delete(version)
-            deleted_count += 1
-
-        # Сохранить изменения
-        session.commit()
-
-    logging.info(f"✅ Удалено индексов: {deleted_count}")
-    logging.info(f"✅ Удалено папок: {len(deleted_dirs)}")
-    logging.info("=== Удаление старых индексов завершено ===")
-
-    return {"deleted_indexes": deleted_count, "deleted_dirs": deleted_dirs}
 
 
 if __name__ == "__main__":
