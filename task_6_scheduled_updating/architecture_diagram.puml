@@ -1,0 +1,111 @@
+@startuml Architecture Diagram - Task 6: Scheduled Vector Index Update
+
+!define RECTANGLE_COLOR #E1F5FE
+!define STORAGE_COLOR #FFF9C4
+!define PROCESS_COLOR #C8E6C9
+!define SCHEDULER_COLOR #FFCCBC
+
+title Архитектура автоматического обновления векторного индекса
+
+' Scheduler
+package "Airflow Scheduler" <<Cloud>> SCHEDULER_COLOR {
+    component "DAG: update_kb_vector_index\n(Запуск каждые 5 минут)" as DAG
+}
+
+' Source Data
+folder "Источник данных" as SOURCE {
+    file "task_2_sample_dataset/\narcanum_articles/\ntext_output_replaced/\n*.txt" as TXT_FILES STORAGE_COLOR
+}
+
+' Processing Pipeline
+package "Оператор 1: update_vector_db\n(PythonVirtualenvOperator)" as OP1 PROCESS_COLOR {
+    component "1. Хеширование файлов\n(file_hashing.py)" as HASH
+    component "2. Сравнение с предыдущей версией\n(compare_hashes)" as COMPARE
+    component "3. Чанкинг текста\n(500 токенов)" as CHUNK
+    component "4. Генерация эмбеддингов\n(Qwen3-Embedding-4B на GPU\n8-bit quantization)" as EMBED
+    component "5. Обновление индекса\n(update_kb_index)" as UPDATE
+}
+
+' Vector Database Versions
+folder "Версии векторной базы" as CHROMA_VERSIONS {
+    database "chroma_versions/4B/\n2025-10-12_14-35-00/" as CHROMA1 STORAGE_COLOR
+    database "chroma_versions/4B/\n2025-10-12_14-55-00/" as CHROMA2 STORAGE_COLOR
+    database "chroma_versions/4B/\n2025-10-12_15-00-00/" as CHROMA3 STORAGE_COLOR
+    note right of CHROMA3
+        Каждая версия — snapshot
+        векторного индекса
+        с временной меткой
+    end note
+}
+
+' Metadata Database
+database "metadata.db\n(SQLite)" as METADATA STORAGE_COLOR {
+    component "VectorIndexVersion\n(путь, timestamp)" as VERSION_TABLE
+    component "DocHash\n(путь, хеш)" as HASH_TABLE
+}
+
+' Cleanup Operator
+package "Оператор 2: cleanup_old_indexes\n(PythonOperator)" as OP2 PROCESS_COLOR {
+    component "Удаление старых версий\n(> 30 минут)\n(drop_old_indexes)" as CLEANUP
+}
+
+' Logs
+folder "Логи" as LOGS {
+    file "~/airflow/logs/\nupdate_kb_vector_index/\nupdate_vector_db/\n*.log" as LOG1 STORAGE_COLOR
+    file "~/airflow/logs/\nupdate_kb_vector_index/\ncleanup_old_indexes/\n*.log" as LOG2 STORAGE_COLOR
+}
+
+' Virtual Environment
+cloud "Временное venv" as VENV {
+    note right
+        Зависимости:
+        - torch
+        - chromadb
+        - sentence-transformers
+        - bitsandbytes
+        - accelerate
+    end note
+}
+
+' Data Flow
+DAG --> OP1 : Запуск по расписанию
+TXT_FILES --> HASH : Чтение файлов
+HASH --> COMPARE : SHA256 хеши
+METADATA --> COMPARE : Предыдущие хеши
+COMPARE --> CHUNK : Новые/изменённые файлы
+CHUNK --> EMBED : Текстовые чанки
+EMBED --> UPDATE : Векторы (embeddings)
+UPDATE --> CHROMA3 : Сохранение новой версии
+UPDATE --> METADATA : Запись метаданных
+
+OP1 --> OP2 : После успешного обновления
+OP2 --> CLEANUP : Запуск очистки
+CLEANUP --> CHROMA1 : Удаление папки
+CLEANUP --> METADATA : Удаление записей
+
+VENV ..> OP1 : Создаётся для задачи
+
+OP1 ..> LOG1 : Пишет логи
+OP2 ..> LOG2 : Пишет логи
+
+' GPU
+node "GPU (GTX 1080Ti)" as GPU {
+    note bottom
+        8-битное квантование
+        для экономии памяти
+    end note
+}
+
+EMBED --> GPU : Вычисления на GPU
+
+' Legend
+legend right
+    |= Компонент |= Описание |
+    | <back:PROCESS_COLOR>   </back> | Процесс обработки |
+    | <back:STORAGE_COLOR>   </back> | Хранилище данных |
+    | <back:SCHEDULER_COLOR>   </back> | Планировщик |
+    | --> | Поток данных |
+    | ..> | Вспомогательная связь |
+endlegend
+
+@enduml

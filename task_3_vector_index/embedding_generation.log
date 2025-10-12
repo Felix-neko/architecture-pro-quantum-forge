@@ -1,0 +1,344 @@
+/home/felix/Projects/yandex_swa_pro/architecture-pro-quantum-forge/.venv/bin/python /home/felix/Projects/yandex_swa_pro/architecture-pro-quantum-forge/task_3_vector_index/extract_embeddings_for_kb.py
+2025-10-12 14:20:34,834 - INFO - Loading documents from /home/felix/Projects/yandex_swa_pro/architecture-pro-quantum-forge/task_2_sample_dataset/arcanum_articles/text_output_replaced
+2025-10-12 14:20:34,836 - INFO - Loaded 51 documents from /home/felix/Projects/yandex_swa_pro/architecture-pro-quantum-forge/task_2_sample_dataset/arcanum_articles/text_output_replaced
+2025-10-12 14:20:34,837 - INFO - =========
+2025-10-12 14:20:34,837 - INFO - Qwen3-0.6B, cpu: False, 8bit: False
+2025-10-12 14:20:34,837 - INFO - encoding documents...
+2025-10-12 14:20:34,839 - INFO - Load pretrained SentenceTransformer: Qwen/Qwen3-Embedding-0.6B
+2025-10-12 14:20:43,601 - INFO - 1 prompt is loaded, with the key: query
+2025-10-12 14:20:43,601 - INFO - Processing document 1/51: Дирижабль _Зефир_ _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:43,604 - INFO -   Split into 2 chunks
+2025-10-12 14:20:44,104 - INFO - Processing document 2/51: Взрывчатка _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:44,105 - INFO -   Split into 1 chunks
+2025-10-12 14:20:44,210 - INFO - Processing document 3/51: Данте _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:44,212 - INFO -   Split into 1 chunks
+2025-10-12 14:20:44,310 - INFO - Processing document 4/51: Б'елан Т'Сераа _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:44,313 - INFO -   Split into 2 chunks
+2025-10-12 14:20:44,501 - INFO - Processing document 5/51: Кер'и Меланж _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:44,502 - INFO -   Split into 2 chunks
+2025-10-12 14:20:44,682 - INFO - Processing document 6/51: Механика _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:44,683 - INFO -   Split into 1 chunks
+2025-10-12 14:20:44,717 - INFO - Processing document 7/51: Очко судьбы _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:44,718 - INFO -   Split into 1 chunks
+2025-10-12 14:20:44,806 - INFO - Processing document 8/51: Соломон Дун _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:44,807 - INFO -   Split into 2 chunks
+2025-10-12 14:20:44,986 - INFO - Processing document 9/51: Лукан Безмозглый _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:44,987 - INFO -   Split into 1 chunks
+2025-10-12 14:20:45,033 - INFO - Processing document 10/51: Карманная кража _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:45,036 - INFO -   Split into 3 chunks
+2025-10-12 14:20:45,282 - INFO - Processing document 11/51: Arcanum_ Of Steamworks and Magick Obscura _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:45,286 - INFO -   Split into 3 chunks
+2025-10-12 14:20:45,539 - INFO - Processing document 12/51: Бедокаан _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:45,540 - INFO -   Split into 1 chunks
+2025-10-12 14:20:45,597 - INFO - Processing document 13/51: Живущий _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:45,598 - INFO -   Split into 1 chunks
+2025-10-12 14:20:45,647 - INFO - Processing document 14/51: Д'рен Л'елор _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:45,649 - INFO -   Split into 2 chunks
+2025-10-12 14:20:45,830 - INFO - Processing document 15/51: Рейвен _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:45,831 - INFO -   Split into 1 chunks
+2025-10-12 14:20:45,907 - INFO - Processing document 16/51: Роузборо _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:45,907 - INFO -   Split into 1 chunks
+2025-10-12 14:20:45,936 - INFO - Processing document 17/51: Карисса Ворак _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:45,938 - INFO -   Split into 2 chunks
+2025-10-12 14:20:46,116 - INFO - Processing document 18/51: Дернхольм _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:46,118 - INFO -   Split into 3 chunks
+2025-10-12 14:20:46,368 - INFO - Processing document 19/51: Мервин Тамблбрук _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:46,370 - INFO -   Split into 2 chunks
+2025-10-12 14:20:46,544 - INFO - Processing document 20/51: Чёрный корень _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:46,545 - INFO -   Split into 1 chunks
+2025-10-12 14:20:46,572 - INFO - Processing document 21/51: Лугард Бладстоун _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:46,574 - INFO -   Split into 2 chunks
+2025-10-12 14:20:46,786 - INFO - Processing document 22/51: Гербология _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:46,787 - INFO -   Split into 1 chunks
+2025-10-12 14:20:46,832 - INFO - Processing document 23/51: Тарант _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:46,832 - INFO -   Split into 1 chunks
+2025-10-12 14:20:46,862 - INFO - Processing document 24/51: Терапевтика _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:46,863 - INFO -   Split into 1 chunks
+2025-10-12 14:20:46,911 - INFO - Processing document 25/51: Полуогры _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:46,912 - INFO -   Split into 1 chunks
+2025-10-12 14:20:47,022 - INFO - Processing document 26/51: Мак Дурной Глаз _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:47,023 - INFO -   Split into 2 chunks
+2025-10-12 14:20:47,228 - INFO - Processing document 27/51: _malicious.txt
+2025-10-12 14:20:47,229 - INFO -   Split into 1 chunks
+2025-10-12 14:20:47,263 - INFO - Processing document 28/51: Воллинджер _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:47,264 - INFO -   Split into 1 chunks
+2025-10-12 14:20:47,357 - INFO - Processing document 29/51: Себастьян _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:47,358 - INFO -   Split into 2 chunks
+2025-10-12 14:20:47,561 - INFO - Processing document 30/51: Гораций МакГинли _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:47,563 - INFO -   Split into 2 chunks
+2025-10-12 14:20:47,751 - INFO - Processing document 31/51: Каладон _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:47,752 - INFO -   Split into 1 chunks
+2025-10-12 14:20:47,790 - INFO - Processing document 32/51: Виктория Уоррингтон _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:47,792 - INFO -   Split into 2 chunks
+2025-10-12 14:20:47,986 - INFO - Processing document 33/51: Эшбери _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:47,987 - INFO -   Split into 1 chunks
+2025-10-12 14:20:48,037 - INFO - Processing document 34/51: Туманные Холмы _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:48,040 - INFO -   Split into 4 chunks
+2025-10-12 14:20:48,413 - INFO - Processing document 35/51: Кинтарра _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:48,414 - INFO -   Split into 1 chunks
+2025-10-12 14:20:48,447 - INFO - Processing document 36/51: Гарфилд Ремингтон _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:48,448 - INFO -   Split into 1 chunks
+2025-10-12 14:20:48,553 - INFO - Processing document 37/51: Джонгл Данн _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:48,554 - INFO -   Split into 1 chunks
+2025-10-12 14:20:48,619 - INFO - Processing document 38/51: Магнус _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:48,620 - INFO -   Split into 1 chunks
+2025-10-12 14:20:48,738 - INFO - Processing document 39/51: Вирджил Браммонд _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:48,740 - INFO -   Split into 2 chunks
+2025-10-12 14:20:48,942 - INFO - Processing document 40/51: Согг Кружка Меда _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:48,943 - INFO -   Split into 1 chunks
+2025-10-12 14:20:49,024 - INFO - Processing document 41/51: _malicious_2.txt
+2025-10-12 14:20:49,025 - INFO -   Split into 1 chunks
+2025-10-12 14:20:49,054 - INFO - Processing document 42/51: Навыки _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:49,058 - INFO -   Split into 4 chunks
+2025-10-12 14:20:49,438 - INFO - Processing document 43/51: Мерик Лаггертон _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:49,440 - INFO -   Split into 2 chunks
+2025-10-12 14:20:49,611 - INFO - Processing document 44/51: Остров Отчаяния _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:49,612 - INFO -   Split into 1 chunks
+2025-10-12 14:20:49,733 - INFO - Processing document 45/51: Вендигрот _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:49,738 - INFO -   Split into 4 chunks
+2025-10-12 14:20:50,118 - INFO - Processing document 46/51: Т'сен-Анг _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:50,118 - INFO -   Split into 1 chunks
+2025-10-12 14:20:50,188 - INFO - Processing document 47/51: Локации _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:50,196 - INFO -   Split into 8 chunks
+2025-10-12 14:20:50,837 - INFO - Processing document 48/51: Собака _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:50,838 - INFO -   Split into 1 chunks
+2025-10-12 14:20:50,886 - INFO - Processing document 49/51: Док Робертс _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:50,887 - INFO -   Split into 1 chunks
+2025-10-12 14:20:50,977 - INFO - Processing document 50/51: Клан Колеса _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:50,980 - INFO -   Split into 3 chunks
+2025-10-12 14:20:51,266 - INFO - Processing document 51/51: Огры _ Arcanum вики _ Fandom.txt
+2025-10-12 14:20:51,269 - INFO -   Split into 3 chunks
+2025-10-12 14:20:51,532 - INFO - Encoding time: 7.93 seconds
+Batches: 100%|██████████| 1/1 [00:00<00:00, 32.76it/s]
+2025-10-12 14:20:51,566 - INFO - saving embeddings...
+2025-10-12 14:20:51,568 - INFO - Saved 51 documents with chunked embeddings
+2025-10-12 14:20:51,568 - INFO - embeddings saved...
+2025-10-12 14:20:51,568 - INFO - =========
+2025-10-12 14:20:51,568 - INFO - Qwen3-4B, cpu: False, 8bit: True
+2025-10-12 14:20:51,569 - INFO - encoding documents...
+2025-10-12 14:20:51,570 - INFO - Load pretrained SentenceTransformer: Qwen/Qwen3-Embedding-4B
+The `load_in_4bit` and `load_in_8bit` arguments are deprecated and will be removed in the future versions. Please, pass a `BitsAndBytesConfig` object in `quantization_config` argument instead.
+Loading checkpoint shards: 100%|██████████| 2/2 [00:07<00:00,  3.90s/it]
+2025-10-12 14:21:08,563 - INFO - 1 prompt is loaded, with the key: query
+2025-10-12 14:21:08,563 - INFO - Processing document 1/51: Дирижабль _Зефир_ _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:08,565 - INFO -   Split into 2 chunks
+2025-10-12 14:21:10,702 - INFO - Processing document 2/51: Взрывчатка _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:10,702 - INFO -   Split into 1 chunks
+2025-10-12 14:21:10,982 - INFO - Processing document 3/51: Данте _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:10,984 - INFO -   Split into 1 chunks
+2025-10-12 14:21:11,524 - INFO - Processing document 4/51: Б'елан Т'Сераа _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:11,526 - INFO -   Split into 2 chunks
+2025-10-12 14:21:13,636 - INFO - Processing document 5/51: Кер'и Меланж _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:13,638 - INFO -   Split into 2 chunks
+2025-10-12 14:21:15,781 - INFO - Processing document 6/51: Механика _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:15,782 - INFO -   Split into 1 chunks
+2025-10-12 14:21:16,027 - INFO - Processing document 7/51: Очко судьбы _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:16,029 - INFO -   Split into 1 chunks
+2025-10-12 14:21:16,547 - INFO - Processing document 8/51: Соломон Дун _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:16,549 - INFO -   Split into 2 chunks
+2025-10-12 14:21:18,703 - INFO - Processing document 9/51: Лукан Безмозглый _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:18,704 - INFO -   Split into 1 chunks
+2025-10-12 14:21:18,996 - INFO - Processing document 10/51: Карманная кража _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:19,000 - INFO -   Split into 3 chunks
+2025-10-12 14:21:22,136 - INFO - Processing document 11/51: Arcanum_ Of Steamworks and Magick Obscura _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:22,139 - INFO -   Split into 3 chunks
+2025-10-12 14:21:25,246 - INFO - Processing document 12/51: Бедокаан _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:25,247 - INFO -   Split into 1 chunks
+2025-10-12 14:21:25,586 - INFO - Processing document 13/51: Живущий _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:25,587 - INFO -   Split into 1 chunks
+2025-10-12 14:21:25,887 - INFO - Processing document 14/51: Д'рен Л'елор _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:25,889 - INFO -   Split into 2 chunks
+2025-10-12 14:21:28,014 - INFO - Processing document 15/51: Рейвен _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:28,015 - INFO -   Split into 1 chunks
+2025-10-12 14:21:28,445 - INFO - Processing document 16/51: Роузборо _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:28,446 - INFO -   Split into 1 chunks
+2025-10-12 14:21:28,634 - INFO - Processing document 17/51: Карисса Ворак _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:28,636 - INFO -   Split into 2 chunks
+2025-10-12 14:21:30,766 - INFO - Processing document 18/51: Дернхольм _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:30,768 - INFO -   Split into 3 chunks
+2025-10-12 14:21:33,897 - INFO - Processing document 19/51: Мервин Тамблбрук _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:33,900 - INFO -   Split into 2 chunks
+2025-10-12 14:21:36,031 - INFO - Processing document 20/51: Чёрный корень _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:36,032 - INFO -   Split into 1 chunks
+2025-10-12 14:21:36,223 - INFO - Processing document 21/51: Лугард Бладстоун _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:36,225 - INFO -   Split into 2 chunks
+2025-10-12 14:21:38,361 - INFO - Processing document 22/51: Гербология _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:38,362 - INFO -   Split into 1 chunks
+2025-10-12 14:21:38,634 - INFO - Processing document 23/51: Тарант _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:38,635 - INFO -   Split into 1 chunks
+2025-10-12 14:21:38,828 - INFO - Processing document 24/51: Терапевтика _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:38,829 - INFO -   Split into 1 chunks
+2025-10-12 14:21:39,149 - INFO - Processing document 25/51: Полуогры _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:39,150 - INFO -   Split into 1 chunks
+2025-10-12 14:21:39,685 - INFO - Processing document 26/51: Мак Дурной Глаз _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:39,687 - INFO -   Split into 2 chunks
+2025-10-12 14:21:41,809 - INFO - Processing document 27/51: _malicious.txt
+2025-10-12 14:21:41,810 - INFO -   Split into 1 chunks
+2025-10-12 14:21:42,005 - INFO - Processing document 28/51: Воллинджер _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:42,006 - INFO -   Split into 1 chunks
+2025-10-12 14:21:42,549 - INFO - Processing document 29/51: Себастьян _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:42,552 - INFO -   Split into 2 chunks
+2025-10-12 14:21:44,532 - INFO - Processing document 30/51: Гораций МакГинли _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:44,534 - INFO -   Split into 2 chunks
+2025-10-12 14:21:46,682 - INFO - Processing document 31/51: Каладон _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:46,683 - INFO -   Split into 1 chunks
+2025-10-12 14:21:46,866 - INFO - Processing document 32/51: Виктория Уоррингтон _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:46,868 - INFO -   Split into 2 chunks
+2025-10-12 14:21:48,992 - INFO - Processing document 33/51: Эшбери _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:48,993 - INFO -   Split into 1 chunks
+2025-10-12 14:21:49,203 - INFO - Processing document 34/51: Туманные Холмы _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:49,207 - INFO -   Split into 4 chunks
+2025-10-12 14:21:53,300 - INFO - Processing document 35/51: Кинтарра _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:53,301 - INFO -   Split into 1 chunks
+2025-10-12 14:21:53,501 - INFO - Processing document 36/51: Гарфилд Ремингтон _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:53,503 - INFO -   Split into 1 chunks
+2025-10-12 14:21:53,953 - INFO - Processing document 37/51: Джонгл Данн _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:53,954 - INFO -   Split into 1 chunks
+2025-10-12 14:21:54,354 - INFO - Processing document 38/51: Магнус _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:54,355 - INFO -   Split into 1 chunks
+2025-10-12 14:21:54,758 - INFO - Processing document 39/51: Вирджил Браммонд _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:54,760 - INFO -   Split into 2 chunks
+2025-10-12 14:21:56,890 - INFO - Processing document 40/51: Согг Кружка Меда _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:56,892 - INFO -   Split into 1 chunks
+2025-10-12 14:21:57,363 - INFO - Processing document 41/51: _malicious_2.txt
+2025-10-12 14:21:57,363 - INFO -   Split into 1 chunks
+2025-10-12 14:21:57,548 - INFO - Processing document 42/51: Навыки _ Arcanum вики _ Fandom.txt
+2025-10-12 14:21:57,552 - INFO -   Split into 4 chunks
+2025-10-12 14:22:01,657 - INFO - Processing document 43/51: Мерик Лаггертон _ Arcanum вики _ Fandom.txt
+2025-10-12 14:22:01,660 - INFO -   Split into 2 chunks
+2025-10-12 14:22:03,798 - INFO - Processing document 44/51: Остров Отчаяния _ Arcanum вики _ Fandom.txt
+2025-10-12 14:22:03,799 - INFO -   Split into 1 chunks
+2025-10-12 14:22:04,151 - INFO - Processing document 45/51: Вендигрот _ Arcanum вики _ Fandom.txt
+2025-10-12 14:22:04,156 - INFO -   Split into 4 chunks
+2025-10-12 14:22:08,220 - INFO - Processing document 46/51: Т'сен-Анг _ Arcanum вики _ Fandom.txt
+2025-10-12 14:22:08,221 - INFO -   Split into 1 chunks
+2025-10-12 14:22:08,516 - INFO - Processing document 47/51: Локации _ Arcanum вики _ Fandom.txt
+2025-10-12 14:22:08,526 - INFO -   Split into 8 chunks
+2025-10-12 14:22:16,602 - INFO - Processing document 48/51: Собака _ Arcanum вики _ Fandom.txt
+2025-10-12 14:22:16,602 - INFO -   Split into 1 chunks
+2025-10-12 14:22:16,891 - INFO - Processing document 49/51: Док Робертс _ Arcanum вики _ Fandom.txt
+2025-10-12 14:22:16,892 - INFO -   Split into 1 chunks
+2025-10-12 14:22:17,425 - INFO - Processing document 50/51: Клан Колеса _ Arcanum вики _ Fandom.txt
+2025-10-12 14:22:17,428 - INFO -   Split into 3 chunks
+2025-10-12 14:22:20,640 - INFO - Processing document 51/51: Огры _ Arcanum вики _ Fandom.txt
+2025-10-12 14:22:20,642 - INFO -   Split into 3 chunks
+2025-10-12 14:22:23,912 - INFO - Encoding time: 75.35 seconds
+Batches: 100%|██████████| 1/1 [00:00<00:00,  4.19it/s]
+2025-10-12 14:22:24,158 - INFO - saving embeddings...
+2025-10-12 14:22:24,161 - INFO - Saved 51 documents with chunked embeddings
+2025-10-12 14:22:24,161 - INFO - embeddings saved...
+2025-10-12 14:22:24,161 - INFO - =========
+2025-10-12 14:22:24,161 - INFO - Qwen3-4B, cpu: True, 8bit: False
+2025-10-12 14:22:24,161 - INFO - encoding documents...
+2025-10-12 14:22:24,163 - INFO - Load pretrained SentenceTransformer: Qwen/Qwen3-Embedding-4B
+Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.34s/it]
+2025-10-12 14:22:34,118 - INFO - 1 prompt is loaded, with the key: query
+2025-10-12 14:22:34,118 - INFO - Processing document 1/51: Дирижабль _Зефир_ _ Arcanum вики _ Fandom.txt
+2025-10-12 14:22:34,120 - INFO -   Split into 2 chunks
+2025-10-12 14:22:56,888 - INFO - Processing document 2/51: Взрывчатка _ Arcanum вики _ Fandom.txt
+2025-10-12 14:22:56,889 - INFO -   Split into 1 chunks
+2025-10-12 14:23:01,367 - INFO - Processing document 3/51: Данте _ Arcanum вики _ Fandom.txt
+2025-10-12 14:23:01,369 - INFO -   Split into 1 chunks
+2025-10-12 14:23:12,104 - INFO - Processing document 4/51: Б'елан Т'Сераа _ Arcanum вики _ Fandom.txt
+2025-10-12 14:23:12,107 - INFO -   Split into 2 chunks
+2025-10-12 14:23:36,855 - INFO - Processing document 5/51: Кер'и Меланж _ Arcanum вики _ Fandom.txt
+2025-10-12 14:23:36,858 - INFO -   Split into 2 chunks
+2025-10-12 14:24:00,168 - INFO - Processing document 6/51: Механика _ Arcanum вики _ Fandom.txt
+2025-10-12 14:24:00,169 - INFO -   Split into 1 chunks
+2025-10-12 14:24:03,404 - INFO - Processing document 7/51: Очко судьбы _ Arcanum вики _ Fandom.txt
+2025-10-12 14:24:03,405 - INFO -   Split into 1 chunks
+2025-10-12 14:24:12,442 - INFO - Processing document 8/51: Соломон Дун _ Arcanum вики _ Fandom.txt
+2025-10-12 14:24:12,444 - INFO -   Split into 2 chunks
+2025-10-12 14:24:35,973 - INFO - Processing document 9/51: Лукан Безмозглый _ Arcanum вики _ Fandom.txt
+2025-10-12 14:24:35,974 - INFO -   Split into 1 chunks
+2025-10-12 14:24:39,604 - INFO - Processing document 10/51: Карманная кража _ Arcanum вики _ Fandom.txt
+2025-10-12 14:24:39,608 - INFO -   Split into 3 chunks
+2025-10-12 14:25:12,526 - INFO - Processing document 11/51: Arcanum_ Of Steamworks and Magick Obscura _ Arcanum вики _ Fandom.txt
+2025-10-12 14:25:12,530 - INFO -   Split into 3 chunks
+2025-10-12 14:25:48,701 - INFO - Processing document 12/51: Бедокаан _ Arcanum вики _ Fandom.txt
+2025-10-12 14:25:48,702 - INFO -   Split into 1 chunks
+2025-10-12 14:25:54,665 - INFO - Processing document 13/51: Живущий _ Arcanum вики _ Fandom.txt
+2025-10-12 14:25:54,666 - INFO -   Split into 1 chunks
+2025-10-12 14:25:59,120 - INFO - Processing document 14/51: Д'рен Л'елор _ Arcanum вики _ Fandom.txt
+2025-10-12 14:25:59,122 - INFO -   Split into 2 chunks
+2025-10-12 14:26:22,115 - INFO - Processing document 15/51: Рейвен _ Arcanum вики _ Fandom.txt
+2025-10-12 14:26:22,116 - INFO -   Split into 1 chunks
+2025-10-12 14:26:30,150 - INFO - Processing document 16/51: Роузборо _ Arcanum вики _ Fandom.txt
+2025-10-12 14:26:30,151 - INFO -   Split into 1 chunks
+2025-10-12 14:26:31,971 - INFO - Processing document 17/51: Карисса Ворак _ Arcanum вики _ Fandom.txt
+2025-10-12 14:26:31,973 - INFO -   Split into 2 chunks
+2025-10-12 14:26:54,580 - INFO - Processing document 18/51: Дернхольм _ Arcanum вики _ Fandom.txt
+2025-10-12 14:26:54,583 - INFO -   Split into 3 chunks
+2025-10-12 14:27:29,351 - INFO - Processing document 19/51: Мервин Тамблбрук _ Arcanum вики _ Fandom.txt
+2025-10-12 14:27:29,353 - INFO -   Split into 2 chunks
+2025-10-12 14:27:52,160 - INFO - Processing document 20/51: Чёрный корень _ Arcanum вики _ Fandom.txt
+2025-10-12 14:27:52,160 - INFO -   Split into 1 chunks
+2025-10-12 14:27:54,081 - INFO - Processing document 21/51: Лугард Бладстоун _ Arcanum вики _ Fandom.txt
+2025-10-12 14:27:54,084 - INFO -   Split into 2 chunks
+2025-10-12 14:28:16,695 - INFO - Processing document 22/51: Гербология _ Arcanum вики _ Fandom.txt
+2025-10-12 14:28:16,696 - INFO -   Split into 1 chunks
+2025-10-12 14:28:20,583 - INFO - Processing document 23/51: Тарант _ Arcanum вики _ Fandom.txt
+2025-10-12 14:28:20,583 - INFO -   Split into 1 chunks
+2025-10-12 14:28:23,064 - INFO - Processing document 24/51: Терапевтика _ Arcanum вики _ Fandom.txt
+2025-10-12 14:28:23,065 - INFO -   Split into 1 chunks
+2025-10-12 14:28:27,478 - INFO - Processing document 25/51: Полуогры _ Arcanum вики _ Fandom.txt
+2025-10-12 14:28:27,480 - INFO -   Split into 1 chunks
+2025-10-12 14:28:37,983 - INFO - Processing document 26/51: Мак Дурной Глаз _ Arcanum вики _ Fandom.txt
+2025-10-12 14:28:37,985 - INFO -   Split into 2 chunks
+2025-10-12 14:29:00,249 - INFO - Processing document 27/51: _malicious.txt
+2025-10-12 14:29:00,250 - INFO -   Split into 1 chunks
+2025-10-12 14:29:02,334 - INFO - Processing document 28/51: Воллинджер _ Arcanum вики _ Fandom.txt
+2025-10-12 14:29:02,336 - INFO -   Split into 1 chunks
+2025-10-12 14:29:11,759 - INFO - Processing document 29/51: Себастьян _ Arcanum вики _ Fandom.txt
+2025-10-12 14:29:11,761 - INFO -   Split into 2 chunks
+2025-10-12 14:29:31,432 - INFO - Processing document 30/51: Гораций МакГинли _ Arcanum вики _ Fandom.txt
+2025-10-12 14:29:31,434 - INFO -   Split into 2 chunks
+2025-10-12 14:29:54,539 - INFO - Processing document 31/51: Каладон _ Arcanum вики _ Fandom.txt
+2025-10-12 14:29:54,539 - INFO -   Split into 1 chunks
+2025-10-12 14:29:56,355 - INFO - Processing document 32/51: Виктория Уоррингтон _ Arcanum вики _ Fandom.txt
+2025-10-12 14:29:56,357 - INFO -   Split into 2 chunks
+2025-10-12 14:30:19,989 - INFO - Processing document 33/51: Эшбери _ Arcanum вики _ Fandom.txt
+2025-10-12 14:30:19,990 - INFO -   Split into 1 chunks
+2025-10-12 14:30:23,314 - INFO - Processing document 34/51: Туманные Холмы _ Arcanum вики _ Fandom.txt
+2025-10-12 14:30:23,317 - INFO -   Split into 4 chunks
+2025-10-12 14:31:05,805 - INFO - Processing document 35/51: Кинтарра _ Arcanum вики _ Fandom.txt
+2025-10-12 14:31:05,806 - INFO -   Split into 1 chunks
+2025-10-12 14:31:07,291 - INFO - Processing document 36/51: Гарфилд Ремингтон _ Arcanum вики _ Fandom.txt
+2025-10-12 14:31:07,293 - INFO -   Split into 1 chunks
+2025-10-12 14:31:14,969 - INFO - Processing document 37/51: Джонгл Данн _ Arcanum вики _ Fandom.txt
+2025-10-12 14:31:14,970 - INFO -   Split into 1 chunks
+2025-10-12 14:31:21,168 - INFO - Processing document 38/51: Магнус _ Arcanum вики _ Fandom.txt
+2025-10-12 14:31:21,169 - INFO -   Split into 1 chunks
+2025-10-12 14:31:27,369 - INFO - Processing document 39/51: Вирджил Браммонд _ Arcanum вики _ Fandom.txt
+2025-10-12 14:31:27,371 - INFO -   Split into 2 chunks
+2025-10-12 14:31:49,115 - INFO - Processing document 40/51: Согг Кружка Меда _ Arcanum вики _ Fandom.txt
+2025-10-12 14:31:49,116 - INFO -   Split into 1 chunks
+2025-10-12 14:31:57,312 - INFO - Processing document 41/51: _malicious_2.txt
+2025-10-12 14:31:57,313 - INFO -   Split into 1 chunks
+2025-10-12 14:31:59,045 - INFO - Processing document 42/51: Навыки _ Arcanum вики _ Fandom.txt
+2025-10-12 14:31:59,049 - INFO -   Split into 4 chunks
+2025-10-12 14:32:41,201 - INFO - Processing document 43/51: Мерик Лаггертон _ Arcanum вики _ Fandom.txt
+2025-10-12 14:32:41,203 - INFO -   Split into 2 chunks
+2025-10-12 14:33:03,190 - INFO - Processing document 44/51: Остров Отчаяния _ Arcanum вики _ Fandom.txt
+2025-10-12 14:33:03,191 - INFO -   Split into 1 chunks
+2025-10-12 14:33:09,325 - INFO - Processing document 45/51: Вендигрот _ Arcanum вики _ Fandom.txt
+2025-10-12 14:33:09,330 - INFO -   Split into 4 chunks
+2025-10-12 14:33:53,532 - INFO - Processing document 46/51: Т'сен-Анг _ Arcanum вики _ Fandom.txt
+2025-10-12 14:33:53,533 - INFO -   Split into 1 chunks
+2025-10-12 14:33:58,041 - INFO - Processing document 47/51: Локации _ Arcanum вики _ Fandom.txt
+2025-10-12 14:33:58,054 - INFO -   Split into 8 chunks
+2025-10-12 14:35:27,825 - INFO - Processing document 48/51: Собака _ Arcanum вики _ Fandom.txt
+2025-10-12 14:35:27,826 - INFO -   Split into 1 chunks
+2025-10-12 14:35:32,049 - INFO - Processing document 49/51: Док Робертс _ Arcanum вики _ Fandom.txt
+2025-10-12 14:35:32,051 - INFO -   Split into 1 chunks
+2025-10-12 14:35:42,517 - INFO - Processing document 50/51: Клан Колеса _ Arcanum вики _ Fandom.txt
+2025-10-12 14:35:42,521 - INFO -   Split into 3 chunks
+2025-10-12 14:36:18,104 - INFO - Processing document 51/51: Огры _ Arcanum вики _ Fandom.txt
+2025-10-12 14:36:18,107 - INFO -   Split into 3 chunks
+2025-10-12 14:36:50,079 - INFO - Encoding time: 855.96 seconds
+Batches: 100%|██████████| 1/1 [00:02<00:00,  2.97s/it]
+2025-10-12 14:36:53,055 - INFO - saving embeddings...
+2025-10-12 14:36:53,058 - INFO - Saved 51 documents with chunked embeddings
+2025-10-12 14:36:53,058 - INFO - embeddings saved...
+
+Process finished with exit code 0
