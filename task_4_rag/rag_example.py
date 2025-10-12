@@ -3,6 +3,7 @@
 
 import logging
 import re
+import sys
 from pathlib import Path
 from typing import List, Dict, Any, Tuple, Optional
 import chromadb
@@ -58,13 +59,21 @@ FORBIDDEN_ENTITIES = ["суперпарол", "superpassword"]
 class CustomChromaRetriever(BaseRetriever):
     """Кастомный ретривер для работы с ChromaDB коллекцией"""
 
-    suffix: str = "4B"  # Модельный суффикс: "0.6B" или "4B"
+    suffix: str = "4B-8bit"  # Модельный суффикс: "0.6B" или "4B"
     collection_name: str = "kb_embeddings"
     k: int = 4  # количество результатов
     use_cpu: bool = False  # Использовать CPU для embeddings
+    use_8bit: bool = True  # Использовать квантизацию 8 бит
     use_chunk_filtering: bool = False  # Использовать ли фильтрацию чанков от опасных сущностей
 
-    def __init__(self, suffix: str = "4B", use_cpu: bool = True, use_chunk_filtering: bool = True, **kwargs):
+    def __init__(
+        self,
+        suffix: str = "4B",
+        use_cpu: bool = True,
+        use_8bit: bool = True,
+        use_chunk_filtering: bool = True,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.suffix = suffix
         self.use_cpu = use_cpu
@@ -83,7 +92,8 @@ class CustomChromaRetriever(BaseRetriever):
         # Инициализация embeddings модели (Qwen3-Embedding)
         self._model = SentenceTransformer(
             f"Qwen/Qwen3-Embedding-{suffix}",
-            device="cpu" if use_cpu else None,
+            device="cpu" if use_cpu else "cuda",
+            model_kwargs={"load_in_8bit": use_8bit},
             tokenizer_kwargs={"padding_side": "left"},
         )
 
@@ -236,7 +246,7 @@ def create_rag_chain(use_chunk_filtering: bool = True) -> RetrievalQAWithSources
     # retriever = StubRetriever()  # Для тестирования без ChromaDB
 
     retriever = CustomChromaRetriever(
-        suffix="4B", use_cpu=True, use_chunk_filtering=use_chunk_filtering
+        suffix="4B", use_cpu=False, use_8bit=True, use_chunk_filtering=use_chunk_filtering
     )  # Реальный поиск через ChromaDB
 
     # Загрузить промпт-темплейты из файлов
@@ -374,7 +384,7 @@ def main() -> None:
     print("Задавайте вопросы на русском языке\n")
 
     while True:
-        question: str = input("Вопрос: ").strip()
+        question: str = input(">> Вопрос: ").strip()
 
         if question.lower() in ("exit", "quit", "выход"):
             print("До свидания!")
@@ -403,6 +413,10 @@ def main() -> None:
             chunks_text = format_source_documents(result["source_documents"])
             print(chunks_text)
             print()
+
+        # Синхронизируем stdout и даём время stderr логам вывестись перед следующим prompt'ом
+        sys.stdout.flush()
+        sys.stderr.flush()
 
 
 if __name__ == "__main__":
